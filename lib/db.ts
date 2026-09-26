@@ -2,10 +2,10 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './db/schema';
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
-if (!connectionString) {
-  throw new Error('DATABASE_URL is missing in environment variables.');
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+  console.warn('[DB] DATABASE_URL is not set in environment variables.');
 }
 
 // Singleton pattern for database connection in development to prevent 
