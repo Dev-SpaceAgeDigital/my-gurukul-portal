@@ -1,0 +1,327 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   ALUMNI PORTAL TYPOGRAPHY SYSTEM
+   (Simple, Nice, and Professional using Inter)
+   ========================================================================== */
+.alumni-portal,
+.alumni-portal * {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Cap all aggressive font weights at medium (500) for an elegant look */
+.alumni-portal .font-bold,
+.alumni-portal .font-extrabold,
+.alumni-portal .font-black,
+.alumni-portal h1,
+.alumni-portal h2,
+.alumni-portal h3,
+.alumni-portal h4,
+.alumni-portal h5,
+.alumni-portal h6,
+.alumni-portal strong,
+.alumni-portal th {
+  font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   SUB ADMIN PORTAL TYPOGRAPHY SYSTEM
+   (Light, Normal, Semibold weights only, Inter font-family, Sentence-case only)
+   ========================================================================== */
+.subadmin-portal {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Force elegant Inter font-family on all elements */
+.subadmin-portal,
+.subadmin-portal * {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Disable aggressive uppercase transforms globally to preserve clean Sentence/Title Case */
+.subadmin-portal *,
+.subadmin-portal .uppercase,
+.subadmin-portal span.uppercase,
+.subadmin-portal th,
+.subadmin-portal label,
+.subadmin-portal button {
+  text-transform: none !important;
+}
+
+/* Override aggressive font weight black, extra-bold, or bold to clean light, normal, or medium/semibold styles */
+.subadmin-portal .font-bold,
+.subadmin-portal .font-extrabold,
+.subadmin-portal .font-black,
+.subadmin-portal h1,
+.subadmin-portal h2,
+.subadmin-portal h3,
+.subadmin-portal h4,
+.subadmin-portal h5,
+.subadmin-portal h6,
+.subadmin-portal strong,
+.subadmin-portal th {
+  font-weight: 400 !important;
+  /* Normal font weight */
+}
+
+/* Ensure clean font size scales */
+.subadmin-portal input,
+.subadmin-portal select,
+.subadmin-portal textarea,
+.subadmin-portal button,
+.subadmin-portal label {
+  font-size: 13px !important;
+}
+
+.subadmin-portal label {
+  font-weight: 500 !important;
+  color: #374151 !important;
+  /* Darker gray (gray-700) for better visibility */
+}
+
+/* Warm Cream Theme & Rounded Borders overrides for SUB_ADMIN */
+.bg-subadmin-gradient {
+  background: linear-gradient(180deg, #edebe7 0%, #f5e7b3 100%) !important;
+}
+
+.subadmin-portal .bg-white {
+  background: rgba(255, 255, 255, 0.60) !important;
+  /* Much more opaque for readability */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(140, 130, 115, 0.15) !important;
+  /* Subtle border for cards */
+  border-radius: 8px !important;
+  /* rounded-lg */
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Force solid warm off-white background for popups/modals to match subadmin theme, preventing dark gray overlay bleeding */
+.subadmin-portal .fixed .bg-white {
+  background: #FAF7F0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(140, 130, 115, 0.25) !important;
+}
+
+.subadmin-portal .bg-slate-50,
+.subadmin-portal .bg-slate-100 {
+  background: rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(8px) !important;
+  border: none !important;
+}
+
+.subadmin-portal .border-slate-100,
+.subadmin-portal .border-slate-200,
+.subadmin-portal .border-slate-200\/50,
+.subadmin-portal .border-slate-300,
+.subadmin-portal .border-slate-50 {
+  border-color: rgba(140, 130, 115, 0.35) !important;
+  /* Darker borders for all elements */
+}
+
+/* Input fields & Selectors styling */
+.subadmin-portal input,
+.subadmin-portal select,
+.subadmin-portal textarea {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  /* High opacity for clarity */
+  border: 1.5px solid rgba(140, 130, 115, 0.6) !important;
+  /* Thicker, darker border */
+  border-radius: 8px !important;
+  color: #000000 !important;
+  /* black */
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.subadmin-portal input:focus,
+.subadmin-portal select:focus,
+.subadmin-portal textarea:focus {
+  border-color: #8c7340 !important;
+  /* Dark gold on focus */
+  box-shadow: 0 0 0 2px rgba(140, 115, 64, 0.2) !important;
+  background-color: #ffffff !important;
+}
+
+.subadmin-portal input::placeholder {
+  color: #6b7280 !important;
+  /* gray-500 placeholder for better contrast */
+}
+
+/* Table styling matching the reference layout */
+.subadmin-portal table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.subadmin-portal th {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: #5c4a26 !important;
+  /* Much darker gold/brown for contrast */
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  /* Bold */
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  border-bottom: 2px solid rgba(140, 130, 115, 0.5) !important;
+  padding: 16px !important;
+}
+
+.subadmin-portal td {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid rgba(140, 130, 115, 0.2) !important;
+  font-size: 13px !important;
+  color: #1f2937 !important;
+  /* gray-800 for better readability */
+  background-color: transparent !important;
+}
+
+.subadmin-portal tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+/* Font weight normal overrides */
+.subadmin-portal h1,
+.subadmin-portal h2,
+.subadmin-portal h3,
+.subadmin-portal h4,
+.subadmin-portal h5,
+.subadmin-portal h6,
+.subadmin-portal p,
+.subadmin-portal span,
+.subadmin-portal th,
+.subadmin-portal td,
+.subadmin-portal label,
+.subadmin-portal button {
+  font-weight: 400 !important;
+  /* Force normal text */
+}
+
+/* Text Colors Hierarchy */
+/* Black: headings and primary elements */
+.subadmin-portal h1,
+.subadmin-portal h2,
+.subadmin-portal h3,
+.subadmin-portal h4,
+.subadmin-portal h5,
+.subadmin-portal h6,
+.subadmin-portal strong,
+.subadmin-portal .text-slate-900,
+.subadmin-portal .text-slate-800 {
+  color: #000000 !important;
+}
+
+/* Gray-700: body text, labels, descriptors */
+.subadmin-portal p,
+.subadmin-portal label,
+.subadmin-portal span,
+.subadmin-portal .text-slate-600,
+.subadmin-portal .text-slate-500,
+.subadmin-portal .text-slate-400 {
+  color: #374151 !important;
+  /* gray-700 for consistent readability */
+}
+
+/* Ensure buttons and elements specifically colored white keep their color */
+.subadmin-portal button,
+.subadmin-portal button span,
+.subadmin-portal button p,
+.subadmin-portal .text-white,
+.subadmin-portal .text-white span {
+  color: inherit !important;
+}
+
+.subadmin-portal .text-white {
+  color: #ffffff !important;
+}
+
+/* Gold: accent highlights, key links, header cells */
+.subadmin-portal th,
+.subadmin-portal a,
+.subadmin-portal .text-\[\#dac48b\],
+.subadmin-portal .text-emerald-600,
+.subadmin-portal .text-teal-600,
+.subadmin-portal .text-amber-600,
+.subadmin-portal .text-\[\#67C090\] {
+  color: #785c2c !important;
+  /* Even darker gold for visibility */
+}
+
+/* Badge colors alignment */
+.subadmin-portal .bg-emerald-50 {
+  background-color: rgba(47, 126, 102, 0.1) !important;
+  border: 1px solid rgba(47, 126, 102, 0.2) !important;
+}
+
+.subadmin-portal .bg-amber-50 {
+  background-color: rgba(180, 108, 56, 0.1) !important;
+  border: 1px solid rgba(180, 108, 56, 0.2) !important;
+}
+
+.subadmin-portal .bg-rose-50,
+.subadmin-portal .bg-red-50 {
+  background-color: rgba(155, 28, 28, 0.1) !important;
+  border: 1px solid rgba(155, 28, 28, 0.2) !important;
+}
+
+/* Global Custom Scrollbar (without top/bottom buttons, light styling) */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 130, 115, 0.22) !important;
+  border-radius: 10px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 130, 115, 0.40) !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+/* For Firefox support */
+* {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(140, 130, 115, 0.22) transparent !important;
+}
+
+/* Hide scrollbar while preserving scrollability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
