@@ -3,6 +3,8 @@ import Razorpay from 'razorpay';
 import { checkRateLimit, rateLimitResponse } from '@/lib/security/rateLimit';
 import pool from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const limit = await checkRateLimit(request, 'payment');
