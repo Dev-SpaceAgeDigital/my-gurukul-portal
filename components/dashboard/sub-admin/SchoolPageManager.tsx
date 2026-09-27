@@ -36,6 +36,7 @@ interface SchoolInfo {
   sscIndexNo?: string | null;
   hscIndexNo?: string | null;
   establishYear?: number | null;
+  isSchoolPageEnabled?: boolean | null;
   trustName?: string | null;
 }
 
@@ -217,6 +218,13 @@ export default function SchoolPageManager() {
     fetchData();
   }, []);
 
+  const visibleTabs = useMemo(() => {
+    if (school?.isSchoolPageEnabled === false) {
+      return tabs.filter((t) => t.id === 'teachers');
+    }
+    return tabs;
+  }, [school?.isSchoolPageEnabled]);
+
   const standardLabels = useMemo(() => {
     const map = new Map<string, string>();
     standards.forEach((standard) => map.set(standard.id, standardLabel(standard)));
@@ -239,6 +247,9 @@ export default function SchoolPageManager() {
       if (!res.ok) throw new Error(data.error || 'Failed to load school page content');
       setStandards(Array.isArray(data.standards) ? data.standards : []);
       setSchool(data.school || null);
+      if (data.school?.isSchoolPageEnabled === false) {
+        setActiveTab('teachers');
+      }
       setContent(normalizeContent(data.content));
     } catch (error: any) {
       showAlert({ title: 'Load failed', message: error.message || 'Failed to load school page content.', variant: 'danger' });
@@ -302,25 +313,45 @@ export default function SchoolPageManager() {
     <div className="lg:h-full lg:overflow-hidden flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white px-5 py-3 rounded-md border border-slate-200 shadow-sm shrink-0">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">School Page Content</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">School Page Content</h2>
+            {school?.isSchoolPageEnabled === false && (
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase">
+                Faculty Register Only
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{school?.schoolName || 'Your School'}</p>
         </div>
 	        <div className="flex flex-wrap items-center gap-2">
-	          <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#18181b] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50">
+	          <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#18181b] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer">
 	            {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
 	            Save
           </button>
         </div>
       </div>
 
+      {school?.isSchoolPageEnabled === false && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-md text-xs font-medium text-amber-900 flex items-center justify-between gap-3 shadow-xs shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base">ℹ️</span>
+            <span>Public School Page features (About, Programs, Facilities, Co-Curriculars) are disabled by Master Admin. Only the <strong>School Faculty & Teachers Register</strong> is accessible.</span>
+          </div>
+        </div>
+      )}
+
 	      <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-4 overflow-hidden">
 	        <aside className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
 	          <div className="px-4 py-3 border-b border-slate-100 shrink-0">
-	            <h3 className="text-sm font-bold text-slate-900">Public page sections</h3>
-	            <p className="text-xs text-slate-500 font-medium mt-0.5">Choose one section to edit.</p>
+	            <h3 className="text-sm font-bold text-slate-900">
+                {school?.isSchoolPageEnabled === false ? 'Active Section' : 'Public page sections'}
+              </h3>
+	            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {school?.isSchoolPageEnabled === false ? 'Manage school staff' : 'Choose one section to edit.'}
+              </p>
 	          </div>
 	          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-2">
-	            {tabs.map((tab) => {
+	            {visibleTabs.map((tab) => {
 	              const Icon = tab.icon;
 	              const isActive = activeTab === tab.id;
 	              return (

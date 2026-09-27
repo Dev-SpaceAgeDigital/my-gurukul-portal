@@ -41,6 +41,7 @@ export async function ensureSchoolPageColumns() {
     await pool.query('ALTER TABLE "SchoolPageContent" ADD COLUMN IF NOT EXISTS "updatedBy" uuid');
     await pool.query('ALTER TABLE "SchoolPageContent" ADD COLUMN IF NOT EXISTS "createdAt" timestamp DEFAULT NOW()');
     await pool.query('ALTER TABLE "SchoolPageContent" ADD COLUMN IF NOT EXISTS "updatedAt" timestamp DEFAULT NOW()');
+    await pool.query('ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "isSchoolPageEnabled" boolean DEFAULT true');
 
     ensured = true;
   } catch (err) {

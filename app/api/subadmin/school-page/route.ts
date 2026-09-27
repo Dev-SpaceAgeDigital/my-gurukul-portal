@@ -81,6 +81,7 @@ export async function GET() {
           s."sscIndexNo",
           s."hscIndexNo",
           s."establishYear",
+          s."isSchoolPageEnabled",
           t."trustName"
         FROM "School" s
         LEFT JOIN "Trust" t ON s."trustId" = t.id
