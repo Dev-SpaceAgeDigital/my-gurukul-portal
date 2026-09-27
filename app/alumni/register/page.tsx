@@ -75,10 +75,13 @@ function AlumniRegisterContent() {
           <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mb-5">
             <GraduationCap size={30} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Join Madni Alumni Family</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+            Join {invite?.schoolName || 'Alumni'} Family
+          </h1>
           <p className="text-sm text-emerald-50 mt-2 font-medium">
-            Register as an old student. Your school subadmin will approve before credentials are emailed.
+            Register as an old student of {invite?.schoolName || 'the institution'}. Your school administration will review and approve your registration.
           </p>
+
         </div>
 
         <div className="p-6 sm:p-10">
