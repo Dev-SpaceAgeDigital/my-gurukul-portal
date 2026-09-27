@@ -80,7 +80,7 @@ function ContributionSkeleton() {
 
 function attachMyDonationTotals(needs: any, donations: any[]) {
    const projectTotals = new Map<string, number>();
-   const aidTotals = new Map<string, { total: number; zakat: number; sadka: number; lillah: number }>();
+   const aidTotals = new Map<string, { total: number; zakat: number; sadka: number; lillah: number; donation: number }>();
 
    donations.forEach((donation) => {
       const referenceId = String(donation.referenceId || '');
@@ -92,12 +92,13 @@ function attachMyDonationTotals(needs: any, donations: any[]) {
          return;
       }
 
-      if (['ZAKAT', 'SADKA', 'LILLAH'].includes(donation.type)) {
-         const current = aidTotals.get(referenceId) || { total: 0, zakat: 0, sadka: 0, lillah: 0 };
+      if (['ZAKAT', 'SADKA', 'LILLAH', 'DONATION', 'AID', 'FEE_PAYMENT'].includes(donation.type)) {
+         const current = aidTotals.get(referenceId) || { total: 0, zakat: 0, sadka: 0, lillah: 0, donation: 0 };
          current.total += amount;
          if (donation.type === 'ZAKAT') current.zakat += amount;
          if (donation.type === 'SADKA') current.sadka += amount;
          if (donation.type === 'LILLAH') current.lillah += amount;
+         if (donation.type === 'DONATION' || donation.type === 'AID' || donation.type === 'FEE_PAYMENT') current.donation += amount;
          aidTotals.set(referenceId, current);
       }
    });
@@ -108,13 +109,14 @@ function attachMyDonationTotals(needs: any, donations: any[]) {
          myDonatedAmount: projectTotals.get(String(expense.id)) || 0,
       })),
       financialAid: (needs.financialAid || []).map((standard: any) => {
-         const totals = aidTotals.get(String(standard.standardId)) || { total: 0, zakat: 0, sadka: 0, lillah: 0 };
+         const totals = aidTotals.get(String(standard.standardId)) || { total: 0, zakat: 0, sadka: 0, lillah: 0, donation: 0 };
          return {
             ...standard,
             myTotalDonated: totals.total,
             myZakatDonated: totals.zakat,
             mySadkaDonated: totals.sadka,
             myLillahDonated: totals.lillah,
+            myDonationDonated: totals.donation,
          };
       }),
    };
@@ -567,12 +569,36 @@ export default function AlumniContributions() {
                               </div>
 
                               <div className="space-y-2 pt-1">
+                                 {/* Donation Mode / General Needy Aid */}
+                                 {(std.donationCount > 0 || (std.sponsorshipMode === 'DONATION' && (std.needyCount > 0 || std.donationCount > 0)) || (!std.zakatCount && !std.sadkaCount && !std.lillahCount && (std.needyCount > 0 || std.donationCount > 0))) && (
+                                    <div className="flex items-center justify-between p-3 bg-blue-50/60 rounded-xl border border-blue-100/70 group hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer shadow-sm sm:p-3.5 sm:rounded-2xl"
+                                       onClick={() => {
+                                          const count = std.donationCount || std.needyCount || 1;
+                                          const paid = std.donationPaid || std.totalAidPaid || 0;
+                                          const needed = Math.max(0, (std.fees * count) - paid);
+                                          setSelectedItem({ ...std, id: std.standardId, type: 'DONATION', title: `Donation Aid - Standard ${std.standardName}`, amountNeeded: needed });
+                                          setPaymentAmount(needed.toString());
+                                          setIsPaymentModalOpen(true);
+                                       }}
+                                    >
+                                       <div>
+                                          <p className="text-[9.5px] font-bold text-blue-600 uppercase tracking-wider">Donation Sponsored</p>
+                                          <p className="text-xs font-bold text-slate-800 sm:text-sm">{std.donationCount || std.needyCount} Needy Students</p>
+                                       </div>
+                                       <div className="text-right">
+                                          <p className="text-[8.5px] font-semibold text-slate-400 uppercase">Remaining</p>
+                                          <p className="mt-0.5 text-[8.5px] font-black uppercase text-emerald-600">You {formatMoney(std.myDonationDonated || std.myTotalDonated)}</p>
+                                          <p className="text-xs font-bold text-blue-600 sm:text-sm">₹{Math.max(0, (std.fees * (std.donationCount || std.needyCount)) - (std.donationPaid || std.totalAidPaid || 0)).toLocaleString()}</p>
+                                       </div>
+                                    </div>
+                                 )}
+
                                  {/* Zakat */}
                                  {std.zakatCount > 0 && (
                                     <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 group hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer shadow-sm sm:p-3.5 sm:rounded-2xl"
                                        onClick={() => {
                                           const needed = (std.fees * std.zakatCount) - std.zakatPaid;
-                                          setSelectedItem({ ...std, id: std.standardId, type: 'ZAKAT', title: `Zakat Aid - ${std.standardName}`, amountNeeded: needed });
+                                          setSelectedItem({ ...std, id: std.standardId, type: 'ZAKAT', title: `Zakat Aid - Standard ${std.standardName}`, amountNeeded: needed });
                                           setPaymentAmount(needed.toString());
                                           setIsPaymentModalOpen(true);
                                        }}
@@ -594,7 +620,7 @@ export default function AlumniContributions() {
                                     <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-100/50 group hover:bg-amber-50 hover:border-amber-200 transition-all cursor-pointer shadow-sm sm:p-3.5 sm:rounded-2xl"
                                        onClick={() => {
                                           const needed = (std.fees * std.sadkaCount) - std.sadkaPaid;
-                                          setSelectedItem({ ...std, id: std.standardId, type: 'SADKA', title: `Sadka Aid - ${std.standardName}`, amountNeeded: needed });
+                                          setSelectedItem({ ...std, id: std.standardId, type: 'SADKA', title: `Sadka Aid - Standard ${std.standardName}`, amountNeeded: needed });
                                           setPaymentAmount(needed.toString());
                                           setIsPaymentModalOpen(true);
                                        }}
@@ -616,7 +642,7 @@ export default function AlumniContributions() {
                                     <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50 group hover:bg-emerald-50 hover:border-emerald-200 transition-all cursor-pointer shadow-sm sm:p-3.5 sm:rounded-2xl"
                                        onClick={() => {
                                           const needed = (std.fees * std.lillahCount) - std.lillahPaid;
-                                          setSelectedItem({ ...std, id: std.standardId, type: 'LILLAH', title: `Lillah Aid - ${std.standardName}`, amountNeeded: needed });
+                                          setSelectedItem({ ...std, id: std.standardId, type: 'LILLAH', title: `Lillah Aid - Standard ${std.standardName}`, amountNeeded: needed });
                                           setPaymentAmount(needed.toString());
                                           setIsPaymentModalOpen(true);
                                        }}

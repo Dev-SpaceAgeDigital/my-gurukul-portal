@@ -46,25 +46,32 @@ export async function GET() {
       SELECT 
         sc.id as "schoolId",
         sc."schoolName",
+        COALESCE(sc."sponsorshipMode", t."sponsorshipMode", 'ZAKAT_LILLAH') as "sponsorshipMode",
         std.id as "standardId",
         std."standardName",
         std.fees,
         COUNT(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Zakat%' THEN 1 END)::int as "zakatCount",
         COUNT(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Sadka%' THEN 1 END)::int as "sadkaCount",
         COUNT(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Lillah%' THEN 1 END)::int as "lillahCount",
+        COUNT(CASE WHEN stu."isNeedy" = true AND (stu."sponsorshipType" ILIKE '%Donation%' OR stu."sponsorshipType" ILIKE '%Scholarship%' OR stu."sponsorshipType" ILIKE '%Aid%' OR (COALESCE(sc."sponsorshipMode", t."sponsorshipMode", 'ZAKAT_LILLAH') = 'DONATION' AND stu."isNeedy" = true)) THEN 1 END)::int as "donationCount",
+        COUNT(CASE WHEN stu."isNeedy" = true THEN 1 END)::int as "needyCount",
         COUNT(CASE WHEN stu."isUnderRTE" = true THEN 1 END)::int as "rteCount",
         COALESCE(SUM(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Zakat%' THEN stu."aidPaidAmount" ELSE 0 END), 0)::float as "zakatPaid",
         COALESCE(SUM(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Sadka%' THEN stu."aidPaidAmount" ELSE 0 END), 0)::float as "sadkaPaid",
         COALESCE(SUM(CASE WHEN stu."isNeedy" = true AND stu."sponsorshipType" ILIKE '%Lillah%' THEN stu."aidPaidAmount" ELSE 0 END), 0)::float as "lillahPaid",
+        COALESCE(SUM(CASE WHEN stu."isNeedy" = true AND (stu."sponsorshipType" ILIKE '%Donation%' OR stu."sponsorshipType" ILIKE '%Scholarship%' OR stu."sponsorshipType" ILIKE '%Aid%' OR (COALESCE(sc."sponsorshipMode", t."sponsorshipMode", 'ZAKAT_LILLAH') = 'DONATION' AND stu."isNeedy" = true)) THEN stu."aidPaidAmount" ELSE 0 END), 0)::float as "donationPaid",
+        COALESCE(SUM(CASE WHEN stu."isNeedy" = true THEN stu."aidPaidAmount" ELSE 0 END), 0)::float as "totalAidPaid",
         0::float as "myZakatDonated",
         0::float as "mySadkaDonated",
         0::float as "myLillahDonated",
+        0::float as "myDonationDonated",
         0::float as "myTotalDonated",
         COUNT(stu.id)::int as "totalStudentsCount"
       FROM "School" sc
+      LEFT JOIN "Trust" t ON sc."trustId" = t.id
       JOIN "Standard" std ON sc.id = std."schoolId"
       JOIN "Student" stu ON std.id = stu."standardId"
-      GROUP BY sc.id, sc."schoolName", std.id, std."standardName", std.fees
+      GROUP BY sc.id, sc."schoolName", sc."sponsorshipMode", t."sponsorshipMode", std.id, std."standardName", std.fees
       HAVING (COUNT(CASE WHEN stu."isNeedy" = true THEN 1 END) > 0 OR COUNT(CASE WHEN stu."isUnderRTE" = true THEN 1 END) > 0)
       ORDER BY sc."schoolName" ASC, std.id ASC
     `);

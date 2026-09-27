@@ -73,15 +73,26 @@ export async function POST(request: Request) {
           'UPDATE "Expense" SET "paidAmount" = "paidAmount" + $1 WHERE id = $2',
           [amount, referenceId]
         );
-      } else if (['ZAKAT', 'LILLAH', 'SADKA'].includes(type!)) {
+      } else if (['ZAKAT', 'LILLAH', 'SADKA', 'DONATION', 'AID', 'FEE_PAYMENT'].includes(type!)) {
         // Distribute amount among needy students in this standard for this category
-        const studentsRes = await client.query(`
-          SELECT s.id, std.fees, s."aidPaidAmount"
-          FROM "Student" s
-          JOIN "Standard" std ON s."standardId" = std.id
-          WHERE s."standardId" = $1 AND s."sponsorshipType" ILIKE $2 AND s."isNeedy" = true
-          ORDER BY s.id ASC
-        `, [referenceId, `%${type}%`]);
+        let studentsRes;
+        if (type === 'DONATION' || type === 'AID' || type === 'FEE_PAYMENT') {
+          studentsRes = await client.query(`
+            SELECT s.id, std.fees, s."aidPaidAmount"
+            FROM "Student" s
+            JOIN "Standard" std ON s."standardId" = std.id
+            WHERE s."standardId" = $1 AND s."isNeedy" = true
+            ORDER BY s.id ASC
+          `, [referenceId]);
+        } else {
+          studentsRes = await client.query(`
+            SELECT s.id, std.fees, s."aidPaidAmount"
+            FROM "Student" s
+            JOIN "Standard" std ON s."standardId" = std.id
+            WHERE s."standardId" = $1 AND s."sponsorshipType" ILIKE $2 AND s."isNeedy" = true
+            ORDER BY s.id ASC
+          `, [referenceId, `%${type}%`]);
+        }
 
         let remaining = amount;
         for (const student of studentsRes.rows) {
