@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 import FirebaseNotificationHandler from "@/components/pwa/FirebaseNotificationHandler";
+import TenantBrandingHead from "@/components/layout/TenantBrandingHead";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +56,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full flex flex-col bg-slate-50" suppressHydrationWarning>
+        <TenantBrandingHead />
         {children}
         <PwaInstallPrompt />
         <FirebaseNotificationHandler />

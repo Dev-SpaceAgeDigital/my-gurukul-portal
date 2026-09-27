@@ -29,10 +29,19 @@ export default function SubAdminLoginPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data?.success) {
+          const name = data.name || 'School Administration';
+          const logoUrl = data.logoUrl || '/my-gurukul.png';
           setTenantInfo({
-            logoUrl: data.logoUrl || '/my-gurukul.png',
-            name: data.name || 'School Administration',
+            logoUrl,
+            name,
           });
+          document.title = `${name} - Campus Admin Login`;
+          if (logoUrl && logoUrl !== '/my-gurukul.png') {
+            const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (link) {
+              link.href = logoUrl;
+            }
+          }
         }
       })
       .catch(() => {});

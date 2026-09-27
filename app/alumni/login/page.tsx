@@ -41,10 +41,19 @@ export default function AlumniLoginPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data?.success) {
+          const name = data.name || 'Alumni Network';
+          const logoUrl = data.logoUrl || '/my-gurukul.png';
           setTenantInfo({
-            logoUrl: data.logoUrl || '/my-gurukul.png',
-            name: data.name || 'My Gurukul',
+            logoUrl,
+            name,
           });
+          document.title = `${name} - Alumni Hub Login`;
+          if (logoUrl && logoUrl !== '/my-gurukul.png') {
+            const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (link) {
+              link.href = logoUrl;
+            }
+          }
         }
       })
       .catch(() => {});

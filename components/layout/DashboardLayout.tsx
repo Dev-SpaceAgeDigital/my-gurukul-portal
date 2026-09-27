@@ -65,7 +65,10 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
   const activeItem = externalActiveItem || internalActiveItem;
   const router = useRouter();
 
+  const [tenantInfo, setTenantInfo] = useState<{ logoUrl: string; name: string; trustName?: string } | null>(null);
+
   useEffect(() => {
+    // 1. Fetch authenticated user profile
     fetch('/api/auth/me').then(res => res.json()).then(data => {
       if (!data.error) {
         setUserData(data);
@@ -78,11 +81,41 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
       }
     }).catch(() => { });
 
+    // 2. Fetch tenant branding (Trust / School Name & Logo for White-Labeling)
+    fetch('/api/public/tenant-info').then(res => res.json()).then(tData => {
+      if (tData?.success) {
+        const brand = {
+          name: tData.name || 'Educational Platform',
+          logoUrl: tData.logoUrl || '/my-gurukul.png',
+          trustName: tData.trustName
+        };
+        setTenantInfo(brand);
+
+        // Dynamically update Chrome Tab Title
+        const portalLabel = role === 'SUPER_ADMIN' ? 'Governance' : role === 'SUB_ADMIN' ? 'School Admin' : 'Alumni Hub';
+        const pageLabel = activeItem || title || portalLabel;
+        document.title = `${brand.name} - ${pageLabel}`;
+
+        // Dynamically update Tab Favicon
+        if (brand.logoUrl && brand.logoUrl !== '/my-gurukul.png') {
+          const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+          if (link) {
+            link.href = brand.logoUrl;
+          } else {
+            const newLink = document.createElement('link');
+            newLink.rel = 'icon';
+            newLink.href = brand.logoUrl;
+            document.head.appendChild(newLink);
+          }
+        }
+      }
+    }).catch(() => {});
+
     const hr = new Date().getHours();
     if (hr < 12) setGreeting('Good morning');
     else if (hr < 17) setGreeting('Good afternoon');
     else setGreeting('Good evening');
-  }, []);
+  }, [activeItem, title, role]);
 
   const getHeaderTitle = () => {
     if (activeItem === 'Dashboard') {
@@ -91,6 +124,7 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
     }
     return activeItem || title;
   };
+
 
   const handleNavigate = (item: string) => {
     if (onNavigate) {
@@ -227,7 +261,7 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
             {/* Logo Section (Left-aligned) */}
             <div className="flex items-center cursor-pointer shrink-0" onClick={() => handleNavigate('Dashboard')}>
               <div className="relative w-18 h-18 flex items-center justify-center shrink-0">
-                <Image src={userData?.logoUrl || "/my-gurukul.png"} alt="Logo" fill className="object-contain p-1" priority />
+                <Image src={tenantInfo?.logoUrl || userData?.logoUrl || "/my-gurukul.png"} alt="Logo" fill className="object-contain p-1" priority />
               </div>
             </div>
 
@@ -436,11 +470,11 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
               <div className={`h-20 flex items-center transition-all duration-300 ease-in-out ${isSidebarOpen ? 'px-6' : 'px-4'} ${role === 'SUPER_ADMIN' ? '' : 'border-b border-white/5'} relative z-10`}>
                 <div className="flex items-center space-x-3">
                   <div className={`relative w-12 h-12 flex items-center justify-center shrink-0 rounded-md ${colors.logoBg}`}>
-                    <Image src={userData?.logoUrl || "/my-gurukul.png"} alt="Logo" fill className="object-contain" priority />
+                    <Image src={tenantInfo?.logoUrl || userData?.logoUrl || "/my-gurukul.png"} alt="Logo" fill className="object-contain" priority />
                   </div>
                   {isSidebarOpen && (
                     <span className="text-white font-bold tracking-tight text-sm truncate max-w-[140px]">
-                      {userData?.schoolName || userData?.trustName || 'My Gurukul'}
+                      {userData?.schoolName || userData?.trustName || tenantInfo?.name || 'My Gurukul'}
                     </span>
                   )}
                 </div>

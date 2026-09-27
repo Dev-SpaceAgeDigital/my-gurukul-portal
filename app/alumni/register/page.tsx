@@ -35,6 +35,9 @@ function AlumniRegisterContent() {
           email: data.invite.email || '',
           batchYear: data.invite.batchYear || '',
         }));
+        if (data.invite?.schoolName) {
+          document.title = `${data.invite.schoolName} - Alumni Registration`;
+        }
       } catch (error: any) {
         setStatus({ type: 'error', message: error?.message || 'Invite link is invalid' });
       } finally {
