@@ -75,12 +75,14 @@ export function getAlumniBaseUrl(req?: Request) {
 
 export async function sendAlumniInviteEmail({
   to,
+  schoolId,
   schoolName,
   batchYear,
   inviteLink,
   message,
 }: {
   to: string;
+  schoolId?: string;
   schoolName: string;
   batchYear?: string | null;
   inviteLink: string;
@@ -88,14 +90,16 @@ export async function sendAlumniInviteEmail({
 }) {
   const result = await sendEmail({
     to,
+    schoolId,
+    schoolName,
     subject: `Join the ${schoolName} Alumni Family`,
     html: `
       <div style="font-family:Arial,sans-serif;background:#f4f7f6;padding:28px;">
         <div style="max-width:580px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e0e7e5;padding:28px;">
-          <h2 style="color:#1A6B5A;margin:0 0 10px;">Join the Madni Alumni Family</h2>
+          <h2 style="color:#1A6B5A;margin:0 0 10px;">Join the ${escapeHtml(schoolName)} Alumni Family</h2>
           <p style="color:#4a5568;line-height:1.7;">You have been invited to register as an alumni of <strong>${escapeHtml(schoolName)}</strong>${batchYear ? `, batch ${escapeHtml(batchYear)}` : ''}.</p>
           ${message ? `<p style="color:#4a5568;line-height:1.7;">${escapeHtml(message)}</p>` : ''}
-          <p style="color:#4a5568;line-height:1.7;">After you submit your details, the school subadmin will verify and approve your request. Login credentials will be emailed only after approval.</p>
+          <p style="color:#4a5568;line-height:1.7;">After you submit your details, the school administration will verify and approve your request. Login credentials will be emailed only after approval.</p>
           <a href="${escapeHtml(inviteLink)}" style="display:inline-block;background:#1A6B5A;color:#fff;text-decoration:none;padding:13px 24px;border-radius:10px;font-weight:700;">Register as Alumni</a>
         </div>
       </div>
@@ -111,6 +115,7 @@ export async function sendAlumniInviteEmail({
 
 export async function sendAlumniCredentialsEmail({
   to,
+  schoolId,
   name,
   schoolName,
   batchYear,
@@ -118,6 +123,7 @@ export async function sendAlumniCredentialsEmail({
   request,
 }: {
   to: string;
+  schoolId?: string;
   name: string;
   schoolName: string;
   batchYear?: string | null;
@@ -127,6 +133,8 @@ export async function sendAlumniCredentialsEmail({
   const loginUrl = `${getAlumniBaseUrl(request)}/alumni/login`;
   const result = await sendEmail({
     to,
+    schoolId,
+    schoolName,
     subject: `Your ${schoolName} Alumni Portal Credentials`,
     html: `
       <div style="font-family:Arial,sans-serif;background:#f4f7f6;padding:28px;">
@@ -149,6 +157,7 @@ export async function sendAlumniCredentialsEmail({
   }
   return true;
 }
+
 
 export async function createApprovedAlumniFromRequest(registration: any, request?: Request) {
   const password = createTemporaryPassword();
@@ -179,12 +188,14 @@ export async function createApprovedAlumniFromRequest(registration: any, request
 
   const emailSent = await sendAlumniCredentialsEmail({
     to: email,
+    schoolId: registration.schoolId,
     name: registration.name,
-    schoolName: registration.schoolName || 'Madni Education Trust',
+    schoolName: registration.schoolName || 'Institution Trust',
     batchYear: registration.batchYear,
     password,
     request,
   });
+
 
   await logEmail({
     schoolId: registration.schoolId,

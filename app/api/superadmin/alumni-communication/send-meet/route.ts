@@ -6,14 +6,16 @@ import { logEmail, logActivity } from '@/lib/monitoring';
 import { checkRateLimit, rateLimitResponse } from '@/lib/security/rateLimit';
 import { sendEmail } from '@/lib/emailSender';
 
-async function sendMeetEmail(to: string, name: string, subject: string, meetLink: string, message: string, meetingAt?: string) {
+async function sendMeetEmail(to: string, name: string, subject: string, meetLink: string, message: string, meetingAt?: string, schoolId?: string, schoolName?: string) {
   const result = await sendEmail({
     to,
+    schoolId,
+    schoolName,
     subject,
     html: `
       <div style="font-family:Arial,sans-serif;background:#f4f7f6;padding:28px;">
         <div style="max-width:580px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e0e7e5;padding:28px;">
-          <h2 style="color:#1A6B5A;margin:0 0 10px;">Madni Alumni Meet</h2>
+          <h2 style="color:#1A6B5A;margin:0 0 10px;">${escapeHtml(schoolName || 'Institution')} Alumni Meet</h2>
           <p style="color:#4a5568;line-height:1.7;">Dear <strong>${escapeHtml(name)}</strong>,</p>
           ${meetingAt ? `<p style="color:#4a5568;"><strong>Meeting Time:</strong> ${escapeHtml(meetingAt)}</p>` : ''}
           <p style="color:#4a5568;line-height:1.7;">${escapeHtml(message)}</p>
@@ -29,6 +31,7 @@ async function sendMeetEmail(to: string, name: string, subject: string, meetLink
   }
   return true;
 }
+
 
 export async function POST(req: Request) {
   try {
@@ -62,8 +65,9 @@ export async function POST(req: Request) {
     let sent = 0;
     let failed = 0;
     for (const alumni of alumniRes.rows) {
-      const ok = await sendMeetEmail(alumni.email, alumni.name, subject, meetLink, message, meetingAt);
+      const ok = await sendMeetEmail(alumni.email, alumni.name, subject, meetLink, message, meetingAt, alumni.schoolId, alumni.schoolName);
       if (ok) sent += 1; else failed += 1;
+
       await logEmail({
         schoolId: alumni.schoolId,
         alumniId: alumni.id,

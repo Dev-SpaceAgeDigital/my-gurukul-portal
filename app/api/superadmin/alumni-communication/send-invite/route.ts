@@ -57,11 +57,13 @@ export async function POST(req: Request) {
       const inviteLink = `${baseUrl}/alumni/register?token=${encodeURIComponent(token)}`;
       const ok = await sendAlumniInviteEmail({
         to: email,
+        schoolId: school.id,
         schoolName: school.schoolName,
         batchYear,
         inviteLink,
         message,
       });
+
       if (ok) sent += 1; else failed += 1;
 
       await logEmail({
