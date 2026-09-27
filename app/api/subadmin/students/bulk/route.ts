@@ -207,14 +207,18 @@ export async function POST(request: Request) {
         );
 
         if (activeYearId) {
-          await client.query(
-            `INSERT INTO "StudentEnrollment" (
-              id, "studentId", "standardId", "academicYearId", status, "createdAt", "updatedAt"
-            ) VALUES (
-              gen_random_uuid(), $1, $2, $3, 'ACTIVE', NOW(), NOW()
-            )`,
-            [newStudentId, standardId, activeYearId]
-          );
+          try {
+            await client.query(
+              `INSERT INTO "StudentEnrollment" (
+                id, "studentId", "standardId", "academicYearId", status, "createdAt", "updatedAt"
+              ) VALUES (
+                gen_random_uuid(), $1, $2, $3, 'ACTIVE', NOW(), NOW()
+              )`,
+              [newStudentId, standardId, activeYearId]
+            );
+          } catch (enrollErr) {
+            console.warn('Enrollment record insert skipped or failed:', enrollErr);
+          }
         }
       }
       await client.query('COMMIT');

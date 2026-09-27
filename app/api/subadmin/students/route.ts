@@ -28,15 +28,15 @@ export async function GET(request: Request) {
     if (academicYearId) {
       queryText = `
         SELECT s.*, std."standardName", std."division", std."batchYear", se."rank", se."percentage", se."status" as "enrollmentStatus"
-        FROM "StudentEnrollment" se
-        JOIN "Student" s ON se."studentId" = s."id"
-        LEFT JOIN "Standard" std ON se."standardId" = std."id"
-        WHERE s."schoolId" = $1 AND se."academicYearId" = $2 AND se."status" = 'ACTIVE'
+        FROM "Student" s
+        LEFT JOIN "Standard" std ON s."standardId" = std."id"
+        LEFT JOIN "StudentEnrollment" se ON se."studentId" = s."id" AND se."academicYearId" = $2 AND se."status" = 'ACTIVE'
+        WHERE s."schoolId" = $1
       `;
       params.push(academicYearId);
       
       if (standardId) {
-        queryText += ' AND se."standardId" = $3';
+        queryText += ' AND s."standardId" = $3';
         params.push(standardId);
       }
     } else {
