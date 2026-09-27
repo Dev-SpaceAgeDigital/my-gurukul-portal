@@ -100,9 +100,15 @@ export const GET = withPublicApi(async (req) => {
       logoUrl: '/my-gurukul.png',
       primaryColor: '#0f172a',
       trustName: 'My Gurukul Network',
-      customDomain: ''
+      customDomain: '',
+      debug: {
+        error: error?.message || String(error),
+        code: error?.code,
+        envDbSet: !!process.env.DATABASE_URL
+      }
     });
   }
 }, { cacheSeconds: 0 });
+
 
 
