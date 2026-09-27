@@ -19,9 +19,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define paths that require authentication
-  const isSuperAdminPath = pathname.startsWith('/superadmin') && !pathname.includes('/login');
-  const isSubAdminPath = pathname.startsWith('/subadmin') && !pathname.includes('/login');
-  const isAlumniPath = pathname.startsWith('/alumni') && !pathname.includes('/login');
+  const isSuperAdminPath = pathname.startsWith('/superadmin') && !pathname.includes('/login') && !pathname.includes('/register');
+  const isSubAdminPath = pathname.startsWith('/subadmin') && !pathname.includes('/login') && !pathname.includes('/register');
+  const isAlumniPath = pathname.startsWith('/alumni') && !pathname.includes('/login') && !pathname.includes('/register');
+
 
   // Skip middleware/proxy for non-protected paths
   if (!isSuperAdminPath && !isSubAdminPath && !isAlumniPath) {
