@@ -1,6 +1,5 @@
-const CACHE_NAME = 'edutrust-pwa-v1';
+const CACHE_NAME = 'edutrust-pwa-v2';
 const ASSETS_TO_CACHE = [
-  '/',
   '/manifest.json',
   '/my-gurukul.png',
 ];
@@ -18,7 +17,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.map((key) => caches.delete(key))
       );
     })
   );
@@ -27,17 +26,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  
+  const url = new URL(event.request.url);
+  // NEVER cache API requests or query params
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {});
         return cachedResponse;
       }
       return fetch(event.request);
     })
   );
 });
+
