@@ -5,6 +5,7 @@ import { withPublicApi } from '@/lib/public-api';
 export const dynamic = 'force-dynamic';
 
 export const GET = withPublicApi(async (req) => {
+
   try {
     const url = new URL(req.url);
     const hostParam = url.searchParams.get('host');
@@ -102,5 +103,6 @@ export const GET = withPublicApi(async (req) => {
       customDomain: ''
     });
   }
-});
+}, { cacheSeconds: 0 });
+
 
