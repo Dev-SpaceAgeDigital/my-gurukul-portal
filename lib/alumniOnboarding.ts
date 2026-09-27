@@ -68,10 +68,37 @@ export function createTemporaryPassword() {
 }
 
 export function getAlumniBaseUrl(req?: Request) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  const origin = req?.headers.get('origin');
-  return (configured || origin || 'http://localhost:3000').replace(/\/$/, '');
+  // 1. Read host dynamically from request headers if available (multi-tenant custom domains)
+  if (req) {
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      const proto = req.headers.get('x-forwarded-proto') || 'https';
+      return `${proto}://${host}`.replace(/\/$/, '');
+    }
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    if (origin) {
+      try {
+        const u = new URL(origin);
+        if (!u.hostname.includes('localhost') && !u.hostname.includes('127.0.0.1')) {
+          return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+        }
+      } catch {}
+    }
+  }
+
+  // 2. Fallback to production site URL or configured env if not localhost
+  const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
+    return configured.replace(/\/$/, '');
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, '');
+  }
+
+  return (configured || 'http://localhost:3000').replace(/\/$/, '');
 }
+
 
 export async function sendAlumniInviteEmail({
   to,
