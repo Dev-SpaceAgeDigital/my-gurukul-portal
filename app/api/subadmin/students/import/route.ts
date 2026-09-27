@@ -43,30 +43,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Excel file is empty or missing headers' }, { status: 400 });
     }
 
-    // Auto-detect header row (Row 1 or Row 2) and stringify header names
-    const headerRowIndex = Array.isArray(rawData[0]) && (rawData[0] as any[]).some(cell => cell !== null && cell !== undefined && String(cell).trim().length > 0) ? 0 : 1;
-    const headerRow = (rawData[headerRowIndex] || rawData[0] || []) as any[];
-    const headers = headerRow.map(h => h !== null && h !== undefined ? String(h).trim() : '');
+    // Intelligent header row detection (scan first 10 rows for student column markers)
+    let headerRowIndex = 0;
+    for (let i = 0; i < Math.min(rawData.length, 10); i++) {
+      const row = rawData[i];
+      if (Array.isArray(row)) {
+        const hasMarker = row.some((cell) => {
+          const s = String(cell || '').trim().toLowerCase();
+          return (
+            s === 'student name' ||
+            s === 'name' ||
+            s === 'student code' ||
+            s === 'gr sr no.' ||
+            s === 'gr no.' ||
+            s === 'admission date'
+          );
+        });
+        if (hasMarker) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    }
+
+    const headerRow = (rawData[headerRowIndex] || []) as any[];
+    const headers = headerRow.map((h) => (h !== null && h !== undefined ? String(h).trim() : ''));
     const rows = rawData.slice(headerRowIndex + 1);
 
-    const maxRows = 1000;
+    const maxRows = 2000;
     if (rows.length > maxRows) {
       return NextResponse.json({ error: `Please import ${maxRows} students or fewer at one time` }, { status: 400 });
     }
 
-    // Map rows to structured objects
-    const students = rows.map((row: any) => {
-      const student: any = {};
-      headers.forEach((header, index) => {
-        if (header) {
-          student[header] = row[index] !== undefined ? row[index] : null;
-        }
+    // Map rows to structured objects (filtering out completely empty rows)
+    const students = rows
+      .filter((row: any) => Array.isArray(row) && row.some((cell) => cell !== null && cell !== undefined && String(cell).trim().length > 0))
+      .map((row: any) => {
+        const student: any = {};
+        headers.forEach((header, index) => {
+          if (header) {
+            student[header] = row[index] !== undefined ? row[index] : null;
+          }
+        });
+        return student;
       });
-      return student;
-    });
 
     return NextResponse.json({ 
-      headers: headers.filter(h => h !== null && h !== undefined), 
+      headers: headers.filter((h) => h && h.length > 0), 
       students 
     });
 
