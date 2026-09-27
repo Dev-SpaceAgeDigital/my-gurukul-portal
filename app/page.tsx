@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -16,6 +17,52 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
+  const [tenantInfo, setTenantInfo] = useState<{
+    name: string;
+    logoUrl: string;
+    trustName?: string;
+    tenantType?: string;
+  }>({
+    name: 'My Gurukul Platform',
+    logoUrl: '/my-gurukul.png',
+    trustName: 'EduTrust Network',
+    tenantType: 'PLATFORM',
+  });
+
+  useEffect(() => {
+    fetch('/api/public/tenant-info')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success) {
+          const name = data.name || 'My Gurukul Platform';
+          const logoUrl = data.logoUrl || '/my-gurukul.png';
+          setTenantInfo({
+            name,
+            logoUrl,
+            trustName: data.trustName || 'EduTrust Network',
+            tenantType: data.tenantType,
+          });
+
+          // Dynamically update Chrome Tab Title
+          document.title = `${name} - Institutional & Alumni Portal`;
+
+          // Dynamically update Favicon
+          if (logoUrl && logoUrl !== '/my-gurukul.png') {
+            const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (link) {
+              link.href = logoUrl;
+            } else {
+              const newLink = document.createElement('link');
+              newLink.rel = 'icon';
+              newLink.href = logoUrl;
+              document.head.appendChild(newLink);
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-sky-50/40 to-blue-50/60 text-slate-800 font-sans antialiased relative overflow-hidden flex flex-col justify-between selection:bg-blue-600 selection:text-white">
       {/* Ambient Decorative Light Glow Effects matching Logo Palette */}
@@ -31,16 +78,25 @@ export default function Home() {
       {/* Top Header */}
       <header className="w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
-          {/* Nice BIG Standalone Logo - No container box, pure clean image */}
-          <Image
-            src="/my-gurukul.png"
-            alt="My Gurukul Logo"
-            width={80}
-            height={80}
-            className="h-16 md:h-20 w-auto object-contain mix-blend-multiply drop-shadow-sm transition-transform hover:scale-105 duration-300"
-            priority
-          />
+          {/* Nice BIG Standalone Logo - Dynamic Tenant Logo */}
+          <div className="relative h-16 md:h-20 w-auto min-w-[60px] flex items-center">
+            <Image
+              src={tenantInfo.logoUrl}
+              alt={`${tenantInfo.name} Logo`}
+              width={80}
+              height={80}
+              className="h-16 md:h-20 w-auto max-h-20 object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
+              priority
+              unoptimized
+            />
+          </div>
           <div>
+            <h2 className="text-base md:text-lg font-black text-slate-900 leading-tight">
+              {tenantInfo.name}
+            </h2>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              {tenantInfo.trustName || 'Educational Trust & Alumni Network'}
+            </p>
           </div>
         </div>
 
@@ -61,7 +117,7 @@ export default function Home() {
         <div className="text-center max-w-3xl mb-12 animate-in fade-in duration-700">
           <div className="inline-flex items-center gap-2.5 px-4.5 py-2 text-xs font-extrabold bg-white/90 backdrop-blur-md text-blue-800 rounded-full border border-blue-200/80 shadow-xs mb-6">
             <Sparkles className="w-4 h-4 text-blue-600" />
-            <span className="tracking-widest uppercase">UNIFIED EDUCATIONAL TRUST & ALUMNI NETWORK</span>
+            <span className="tracking-widest uppercase">{tenantInfo.name} PORTAL</span>
           </div>
 
           <h1 className="text-4xl md:text-6xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.1]">

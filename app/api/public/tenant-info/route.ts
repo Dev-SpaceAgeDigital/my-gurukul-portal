@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { withPublicApi } from '@/lib/public-api';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = withPublicApi(async (req) => {
   try {
     const url = new URL(req.url);
     const hostParam = url.searchParams.get('host');
     
     // Read caller host from header or query param
-    const rawHost = hostParam || req.headers.get('host') || '';
+    const rawHost = hostParam || req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
     const cleanHost = rawHost.split(':')[0].toLowerCase().trim(); // Remove port if dev
+    const nakedHost = cleanHost.replace(/^portal\./, '').replace(/^www\./, '');
+    const subdomainSlug = cleanHost.split('.')[0];
 
     if (!cleanHost || cleanHost === 'localhost' || cleanHost === '127.0.0.1') {
       // Default fallback info for local development
@@ -30,8 +34,10 @@ export const GET = withPublicApi(async (req) => {
               t."trustName", t."logoUrl" as "trustLogo", t."primaryColor"
        FROM "School" s
        LEFT JOIN "Trust" t ON s."trustId" = t.id
-       WHERE LOWER(s."customDomain") = $1 OR LOWER(s."subdomain") = $1 OR s.id::text = $1`,
-      [cleanHost]
+       WHERE LOWER(s."customDomain") IN ($1, $2) 
+          OR LOWER(s."subdomain") IN ($1, $3) 
+          OR s.id::text = $1`,
+      [cleanHost, nakedHost, subdomainSlug]
     );
 
     if (schoolRes.rows.length > 0) {
@@ -53,8 +59,10 @@ export const GET = withPublicApi(async (req) => {
     const trustRes = await pool.query(
       `SELECT id as "trustId", "trustName", "logoUrl", "primaryColor", "customDomain", "slug"
        FROM "Trust"
-       WHERE LOWER("customDomain") = $1 OR LOWER("slug") = $1 OR id::text = $1`,
-      [cleanHost]
+       WHERE LOWER("customDomain") IN ($1, $2) 
+          OR LOWER("slug") IN ($1, $3) 
+          OR id::text = $1`,
+      [cleanHost, nakedHost, subdomainSlug]
     );
 
     if (trustRes.rows.length > 0) {

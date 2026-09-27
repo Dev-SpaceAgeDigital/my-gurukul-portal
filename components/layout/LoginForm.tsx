@@ -36,14 +36,25 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
       .then((res) => res.json())
       .then((data) => {
         if (data?.success) {
+          const name = data.name || 'EduTrust OS';
+          const logoUrl = data.logoUrl || '/my-gurukul.png';
           setTenantInfo({
-            logoUrl: data.logoUrl || '/my-gurukul.png',
-            name: data.name || 'EduTrust OS',
+            logoUrl,
+            name,
           });
+
+          // Update tab title and favicon
+          document.title = `${name} - ${roleName} Login`;
+          if (logoUrl && logoUrl !== '/my-gurukul.png') {
+            const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (link) {
+              link.href = logoUrl;
+            }
+          }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [roleName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
