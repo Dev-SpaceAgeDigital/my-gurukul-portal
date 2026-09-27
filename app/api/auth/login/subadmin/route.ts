@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await startLoginOtp({
+    const otpRes = await startLoginOtp({
       role: 'SUB_ADMIN',
       email: user.email,
       userId: user.id,
@@ -55,15 +55,21 @@ export async function POST(request: Request) {
       name: user.name,
     });
 
+    let message = 'OTP sent to your registered email.';
+    if (isDemo) {
+      message = 'OTP sent to your registered email. (Demo OTP: 123456)';
+    } else if (otpRes?.fallbackOtp) {
+      message = `No email gateway configured yet. Use temporary OTP: ${otpRes.fallbackOtp}`;
+    }
+
     return NextResponse.json({
       success: true,
       requiresOtp: true,
       role: 'SUB_ADMIN',
       email: user.email,
-      message: isDemo
-        ? 'OTP sent to your registered email. (Demo OTP: 123456)'
-        : 'OTP sent to your registered email.',
+      message,
     });
+
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });

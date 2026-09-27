@@ -69,15 +69,30 @@ export async function startLoginOtp(input: LoginOtpInput) {
     });
 
     if (!result.ok && !isDemo) {
+      if (result.provider === 'NONE') {
+        return {
+          ok: true,
+          emailSent: false,
+          fallbackOtp: otp,
+          warning: 'No email service API key configured (neither Trust Brevo key nor server BREVO_API_KEY).',
+        };
+      }
       throw new Error(result.error || 'Failed to send login OTP.');
     }
+
+    return {
+      ok: true,
+      emailSent: true,
+    };
   } catch (error) {
     if (!isDemo) {
       await redis.del(otpKey);
       throw error;
     }
+    return { ok: true, emailSent: false, fallbackOtp: DEMO_OTP };
   }
 }
+
 
 export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInput: string) {
   const email = normalizeLoginEmail(emailInput);
