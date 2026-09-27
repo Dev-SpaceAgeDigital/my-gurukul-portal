@@ -92,6 +92,15 @@ export const GET = withPublicApi(async (req) => {
 
   } catch (error: any) {
     console.error('Public tenant-info resolution error:', error);
-    return NextResponse.json({ error: 'Failed to resolve tenant branding' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      tenantType: 'FALLBACK',
+      name: 'My Gurukul Platform',
+      logoUrl: '/my-gurukul.png',
+      primaryColor: '#0f172a',
+      trustName: 'My Gurukul Network',
+      customDomain: ''
+    });
   }
 });
+

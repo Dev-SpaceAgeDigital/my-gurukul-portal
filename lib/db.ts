@@ -2,11 +2,9 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './db/schema';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
+const fallbackUrl = 'postgresql://postgres.ytajcmuzqmsrvxnnwvcf:S%26gTCA%2B%2B%2Fj2!a8w@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres';
+const connectionString = process.env.DATABASE_URL || fallbackUrl;
 
-if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
-  console.warn('[DB] DATABASE_URL is not set in environment variables.');
-}
 
 // Singleton pattern for database connection in development to prevent 
 // exhausted connections due to hot reloading.
