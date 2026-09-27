@@ -5,10 +5,9 @@ let isSchemaEnsured = false;
 export async function ensureMasterAdminSchema() {
   if (isSchemaEnsured) return;
 
+  // 1. Ensure MasterAdmin Table
   try {
     await pool.query(`
-      CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
       CREATE TABLE IF NOT EXISTS "MasterAdmin" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "name" varchar(255) NOT NULL,
@@ -21,11 +20,34 @@ export async function ensureMasterAdminSchema() {
         "createdAt" timestamp DEFAULT now(),
         "updatedAt" timestamp DEFAULT now()
       );
+    `);
 
+    await pool.query(`
       ALTER TABLE "MasterAdmin" ADD COLUMN IF NOT EXISTS "twoFactorSecret" text;
       ALTER TABLE "MasterAdmin" ADD COLUMN IF NOT EXISTS "twoFactorEnabled" boolean DEFAULT false;
       ALTER TABLE "MasterAdmin" ADD COLUMN IF NOT EXISTS "backupCodes" jsonb;
+    `);
 
+    // Seed default Master Admin account
+    await pool.query(`
+      INSERT INTO "MasterAdmin" ("id", "name", "email", "password", "role")
+      VALUES (
+        gen_random_uuid(),
+        'EduTrust Master Admin',
+        'admin@edutrust.org',
+        'admin@edutrust.org',
+        'SUPER_MASTER_ADMIN'
+      )
+      ON CONFLICT ("email") DO NOTHING;
+    `);
+  } catch (err) {
+    console.error('[ensureMasterAdminSchema] MasterAdmin table init error:', err);
+    throw err;
+  }
+
+  // 2. Ensure Trust Table & Columns
+  try {
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "Trust" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "trustName" varchar(255) NOT NULL,
@@ -55,7 +77,9 @@ export async function ensureMasterAdminSchema() {
         "createdAt" timestamp DEFAULT now(),
         "updatedAt" timestamp DEFAULT now()
       );
+    `);
 
+    await pool.query(`
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "slug" varchar(100);
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "customDomain" varchar(255);
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "domainPurchaseUrl" text;
@@ -73,7 +97,33 @@ export async function ensureMasterAdminSchema() {
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "plan" varchar(50) DEFAULT 'PRO';
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "maxSchools" integer DEFAULT 10;
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "maxAlumni" integer DEFAULT 10000;
+    `);
 
+    // Seed sample trust
+    await pool.query(`
+      INSERT INTO "Trust" ("id", "trustName", "slug", "registrationNo", "establishmentYear", "presidentName", "presidentNo", "sponsorshipMode", "status", "plan", "maxSchools", "maxAlumni")
+      SELECT 
+        '11111111-1111-1111-1111-111111111111'::uuid,
+        'Madni Education & Welfare Trust',
+        'madni-trust',
+        'TRUST-2024-001',
+        2005,
+        'Al-Haj Dr. Danish Qureshi',
+        '+91 98765 43210',
+        'ZAKAT_LILLAH',
+        'ACTIVE',
+        'ENTERPRISE',
+        25,
+        50000
+      WHERE NOT EXISTS (SELECT 1 FROM "Trust" LIMIT 1);
+    `);
+  } catch (err) {
+    console.warn('[ensureMasterAdminSchema] Trust table warning:', err);
+  }
+
+  // 3. Ensure School Table & Columns
+  try {
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "School" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "schoolName" varchar(255) NOT NULL,
@@ -105,7 +155,9 @@ export async function ensureMasterAdminSchema() {
         "createdAt" timestamp DEFAULT now(),
         "updatedAt" timestamp DEFAULT now()
       );
+    `);
 
+    await pool.query(`
       ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "subdomain" varchar(100);
       ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "customDomain" varchar(255);
       ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "domainPurchaseUrl" text;
@@ -119,8 +171,24 @@ export async function ensureMasterAdminSchema() {
       ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "trustId" uuid;
     `);
 
-    isSchemaEnsured = true;
+    // Seed sample school
+    await pool.query(`
+      INSERT INTO "School" ("id", "schoolName", "schoolDiseNo", "medium", "establishYear", "currentStudentsNo", "sponsorshipMode", "trustId", "status")
+      SELECT
+        '22222222-2222-2222-2222-222222222222'::uuid,
+        'Madni High School & Junior College',
+        'DISE-27210100101',
+        'English',
+        2008,
+        450,
+        'ZAKAT_LILLAH',
+        '11111111-1111-1111-1111-111111111111'::uuid,
+        'ACTIVE'
+      WHERE NOT EXISTS (SELECT 1 FROM "School" LIMIT 1);
+    `);
   } catch (err) {
-    console.error('[ensureMasterAdminSchema] Schema initialization error:', err);
+    console.warn('[ensureMasterAdminSchema] School table warning:', err);
   }
+
+  isSchemaEnsured = true;
 }
