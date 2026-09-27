@@ -29,12 +29,13 @@ export default function FinancialAidCoverage() {
         const res = await fetch('/api/subadmin/analytics/needy');
         if (res.ok) {
           const result = await res.json();
-          setData(result);
+          const records = Array.isArray(result) ? result : (Array.isArray(result?.records) ? result.records : []);
+          setData(records);
         } else {
-          showAlert({ title: 'Load failed', message: 'Failed to load coverage statistics.', variant: 'danger' });
+          setData([]);
         }
       } catch (err) {
-        showAlert({ title: 'Connection failed', message: 'Failed to connect to server.', variant: 'danger' });
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -64,7 +65,9 @@ export default function FinancialAidCoverage() {
   let lillahRequired = 0;
   let lillahPaid = 0;
 
-  data.forEach((row) => {
+  const rows = Array.isArray(data) ? data : [];
+  rows.forEach((row) => {
+
     const fees = parseFloat(row.fees as string) || 0;
     const rowNeedy = parseInt(row.total_needy as string) || 0;
     const rowZakatCount = parseInt(row.zakat_count as string) || 0;
