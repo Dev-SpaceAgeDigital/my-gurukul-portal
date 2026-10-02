@@ -128,6 +128,56 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const session = await getSessionFromCookies('ADMIN');
+    if (!session || session.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id, title, tagline, description, points, featuredImage, date, category, schoolId } = await request.json();
+
+    if (!id || !title || !date) {
+      return NextResponse.json({ error: 'ID, Title, and Date are required' }, { status: 400 });
+    }
+
+    const updateQuery = `
+      UPDATE "Event"
+      SET title = $1,
+          tagline = $2,
+          description = $3,
+          points = $4,
+          "featuredImage" = $5,
+          date = $6,
+          category = $7,
+          "schoolId" = COALESCE($8, "schoolId")
+      WHERE id = $9
+      RETURNING *
+    `;
+
+    const result = await pool.query(updateQuery, [
+      title,
+      tagline || '',
+      description || '',
+      points || [],
+      featuredImage || '',
+      date,
+      category || 'School Life',
+      schoolId || null,
+      id,
+    ]);
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
+  } catch (error) {
+    console.error('Superadmin update event error:', error);
+    return NextResponse.json({ error: 'Failed to update event' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const session = await getSessionFromCookies('ADMIN');
@@ -155,3 +205,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 });
   }
 }
+

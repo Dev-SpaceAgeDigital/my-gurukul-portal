@@ -24,9 +24,10 @@ const DEFAULT_CATEGORIES = [
 
 interface EditEventFormProps {
   eventId: string;
+  isSuperAdmin?: boolean;
 }
 
-export default function EditEventForm({ eventId }: EditEventFormProps) {
+export default function EditEventForm({ eventId, isSuperAdmin = false }: EditEventFormProps) {
   const router = useRouter();
   const { dialog, showAlert } = usePortalDialog();
 
@@ -47,13 +48,15 @@ export default function EditEventForm({ eventId }: EditEventFormProps) {
 
   useEffect(() => {
     fetchEventDetails();
-  }, [eventId]);
+  }, [eventId, isSuperAdmin]);
 
   const fetchEventDetails = async () => {
     try {
-      const res = await fetch('/api/subadmin/events');
+      const endpoint = isSuperAdmin ? '/api/superadmin/events' : '/api/subadmin/events';
+      const res = await fetch(endpoint);
       if (res.ok) {
-        const events = await res.json();
+        const data = await res.json();
+        const events = Array.isArray(data) ? data : (data.events || []);
         const catsFromEvents = events
           .map((e: any) => e.category)
           .filter(Boolean) as string[];
@@ -121,7 +124,8 @@ export default function EditEventForm({ eventId }: EditEventFormProps) {
       : category;
 
     try {
-      const res = await fetch('/api/subadmin/events', {
+      const endpoint = isSuperAdmin ? '/api/superadmin/events' : '/api/subadmin/events';
+      const res = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +142,7 @@ export default function EditEventForm({ eventId }: EditEventFormProps) {
 
       if (res.ok) {
         await showAlert({ title: 'Event updated', message: 'Event details have been synchronized successfully.', variant: 'success' });
-        router.push('/subadmin/school-hub?tab=events');
+        router.push(isSuperAdmin ? '/superadmin/events' : '/subadmin/school-hub?tab=events');
       } else {
         const data = await res.json();
         showAlert({ title: 'Update failed', message: data.error || 'Failed to update event.', variant: 'danger' });
@@ -149,6 +153,8 @@ export default function EditEventForm({ eventId }: EditEventFormProps) {
       setIsSaving(false);
     }
   };
+
+  const backLink = isSuperAdmin ? '/superadmin/events' : '/subadmin/school-hub?tab=events';
 
   if (isFetching) {
     return (

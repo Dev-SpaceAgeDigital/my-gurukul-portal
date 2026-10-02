@@ -21,7 +21,11 @@ const DEFAULT_CATEGORIES = [
   'Excursion'
 ];
 
-export default function AddEventForm() {
+interface AddEventFormProps {
+  isSuperAdmin?: boolean;
+}
+
+export default function AddEventForm({ isSuperAdmin = false }: AddEventFormProps) {
   const router = useRouter();
   const { dialog, showAlert } = usePortalDialog();
 
@@ -35,6 +39,8 @@ export default function AddEventForm() {
   const [category, setCategory] = useState('Annual Day');
   const [customCategory, setCustomCategory] = useState('');
   const [existingCategories, setExistingCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [schools, setSchools] = useState<{ id: string; schoolName: string }[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,21 +48,28 @@ export default function AddEventForm() {
     // Fetch existing events to populate any custom categories previously created
     const fetchExisting = async () => {
       try {
-        const res = await fetch('/api/subadmin/events');
+        const endpoint = isSuperAdmin ? '/api/superadmin/events' : '/api/subadmin/events';
+        const res = await fetch(endpoint);
         if (res.ok) {
-          const events = await res.json();
-          const catsFromEvents = events
+          const data = await res.json();
+          const eventsList = Array.isArray(data) ? data : (data.events || []);
+          const catsFromEvents = eventsList
             .map((e: any) => e.category)
             .filter(Boolean) as string[];
           const combined = Array.from(new Set([...DEFAULT_CATEGORIES, ...catsFromEvents]));
           setExistingCategories(combined);
+
+          if (isSuperAdmin && Array.isArray(data.schools) && data.schools.length > 0) {
+            setSchools(data.schools);
+            setSelectedSchoolId(data.schools[0].id);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch categories:', err);
       }
     };
     fetchExisting();
-  }, []);
+  }, [isSuperAdmin]);
 
   const handleAddPoint = () => {
     if (!newPoint.trim()) return;
@@ -77,7 +90,8 @@ export default function AddEventForm() {
       : category;
 
     try {
-      const res = await fetch('/api/subadmin/events', {
+      const endpoint = isSuperAdmin ? '/api/superadmin/events' : '/api/subadmin/events';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -87,13 +101,14 @@ export default function AddEventForm() {
           points,
           featuredImage,
           date,
-          category: finalCategory
+          category: finalCategory,
+          ...(isSuperAdmin && selectedSchoolId ? { schoolId: selectedSchoolId } : {}),
         })
       });
 
       if (res.ok) {
         await showAlert({ title: 'Event created', message: 'Event details have been published successfully.', variant: 'success' });
-        router.push('/subadmin/school-hub?tab=events');
+        router.push(isSuperAdmin ? '/superadmin/events' : '/subadmin/school-hub?tab=events');
       } else {
         const data = await res.json();
         showAlert({ title: 'Create failed', message: data.error || 'Failed to create event.', variant: 'danger' });
@@ -105,13 +120,15 @@ export default function AddEventForm() {
     }
   };
 
+  const backLink = isSuperAdmin ? '/superadmin/events' : '/subadmin/school-hub?tab=events';
+
   return (
     <>
     <div className="w-full mx-auto py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top Navigation */}
       <div className="mb-6">
         <Link
-          href="/subadmin/school-hub?tab=events"
+          href={backLink}
           className="inline-flex items-center text-xs font-bold text-slate-600 hover:text-[#18181b] transition-colors"
         >
           <ArrowLeft size={16} className="mr-2" />
@@ -134,6 +151,26 @@ export default function AddEventForm() {
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          {/* School Selection (Superadmin only) */}
+          {isSuperAdmin && (
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Target School <span className="text-rose-500">*</span>
+              </label>
+              <select
+                required
+                value={selectedSchoolId}
+                onChange={(e) => setSelectedSchoolId(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-[#18181b]/20 focus:border-[#18181b] transition-all shadow-sm"
+              >
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.schoolName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Event Title */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">

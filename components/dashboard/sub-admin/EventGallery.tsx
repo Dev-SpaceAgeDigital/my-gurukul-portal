@@ -230,7 +230,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
           <p className="text-xs text-slate-500 font-medium tracking-wide">Manage school events, categories, photos, and videos</p>
         </div>
         <Link
-          href="/subadmin/events/add"
+          href={isSuperAdmin ? "/superadmin/events/add" : "/subadmin/events/add"}
           className="inline-flex items-center justify-center px-4 py-2 bg-[#18181b] text-white rounded-md text-xs font-bold uppercase tracking-wider hover:bg-black transition-all shadow-sm active:scale-95 shrink-0"
         >
           <Plus size={16} className="mr-2" />
@@ -391,7 +391,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                     Add Video
                   </button>
                   <Link
-                    href={`/subadmin/events/edit/${selectedEvent.id}`}
+                    href={isSuperAdmin ? `/superadmin/events/edit/${selectedEvent.id}` : `/subadmin/events/edit/${selectedEvent.id}`}
                     className="p-2 text-slate-600 hover:text-[#1b4a50] hover:bg-teal-50 border border-transparent hover:border-teal-200 rounded-md transition-colors"
                     title="Edit Event Page"
                   >
