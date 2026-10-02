@@ -24,9 +24,20 @@ export default function AlumniRegistrationRequests() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const { dialog, showAlert, confirmDialog } = usePortalDialog();
 
+  const [copiedLink, setCopiedLink] = useState(false);
+
   useEffect(() => {
     fetchRequests();
   }, [status]);
+
+  const copyPublicLink = () => {
+    if (typeof window === 'undefined') return;
+    const origin = window.location.origin;
+    const url = `${origin}/alumni/register`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -85,12 +96,21 @@ export default function AlumniRegistrationRequests() {
             </h3>
             <p className="text-xs font-semibold text-slate-500 mt-1">Approve old students before alumni credentials are sent.</p>
           </div>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="ALL">All</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyPublicLink}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 transition-all shadow-sm"
+              title="Copy common link to send to any alumni for self-registration"
+            >
+              {copiedLink ? '✓ Copied!' : 'Copy Onboarding Link'}
+            </button>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="ALL">All</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto bg-white border border-slate-200 rounded-md shadow-sm">

@@ -16,9 +16,13 @@ import {
   ExternalLink,
   ChevronRight,
   School,
-  Star
+  Star,
+  Phone,
+  Copy,
+  Check
 } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
+import { COUNTRY_CODES } from '@/lib/countryCodes';
 
 interface EligibleStudent {
   id: string;
@@ -26,14 +30,20 @@ interface EligibleStudent {
   studentCode: string;
   standardName: string;
   batchYear: string | null;
+  contactNo?: string;
   gmailId?: string;
   linkedIn?: string;
+  countryCode?: string;
+  phoneNumber?: string;
 }
 
 interface Alumni {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
+  countryCode?: string | null;
+  mobileNumber?: string | null;
   password?: string;
   linkedIn: string | null;
   batchYear: string;
@@ -52,6 +62,7 @@ export default function AlumniManagement() {
   const [successData, setSuccessData] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedLink, setCopiedLink] = useState(false);
   const rowsPerPage = 10;
 
   const [selectedStandard, setSelectedStandard] = useState('All');
@@ -72,7 +83,13 @@ export default function AlumniManagement() {
       const res = await fetch(`/api/subadmin/alumni?type=eligible&standard=${selectedStandard}`);
       if (res.ok) {
         const data = await res.json();
-        setEligibleStudents(data.map((s: any) => ({ ...s, gmailId: '', linkedIn: '' })));
+        setEligibleStudents(data.map((s: any) => ({
+          ...s,
+          countryCode: '+91',
+          phoneNumber: s.contactNo || '',
+          gmailId: '',
+          linkedIn: ''
+        })));
       }
     } finally {
       setLoading(false);
@@ -92,6 +109,15 @@ export default function AlumniManagement() {
     }
   };
 
+  const copyPublicLink = () => {
+    if (typeof window === 'undefined') return;
+    const origin = window.location.origin;
+    const url = `${origin}/alumni/register`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
   const handleConvert = async (student: EligibleStudent) => {
     if (!student.gmailId) {
       showAlert({
@@ -109,6 +135,9 @@ export default function AlumniManagement() {
         body: JSON.stringify({
           studentId: student.id,
           gmailId: student.gmailId,
+          countryCode: student.countryCode || '+91',
+          phoneNumber: student.phoneNumber,
+          phone: student.phoneNumber,
           linkedIn: student.linkedIn,
           batchYear: student.batchYear || '2024-25'
         }),
@@ -198,19 +227,29 @@ export default function AlumniManagement() {
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">Alumni Directory</h2>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Graduation Management & Directory</p>
         </div>
-        <div className="flex bg-slate-100 p-1 rounded-md">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => setActiveTab('eligibility')}
-            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'eligibility' ? 'bg-[#18181b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            onClick={copyPublicLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-emerald-200 bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100 transition-all shadow-sm"
+            title="Copy common link to send to any alumni for self-registration"
           >
-            Make Alumni
+            {copiedLink ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+            <span>{copiedLink ? 'Link Copied!' : 'Copy Onboarding Link'}</span>
           </button>
-          <button
-            onClick={() => setActiveTab('directory')}
-            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'directory' ? 'bg-[#18181b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Alumni List
-          </button>
+          <div className="flex bg-slate-100 p-1 rounded-md">
+            <button
+              onClick={() => setActiveTab('eligibility')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'eligibility' ? 'bg-[#18181b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Make Alumni
+            </button>
+            <button
+              onClick={() => setActiveTab('directory')}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'directory' ? 'bg-[#18181b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Alumni List
+            </button>
+          </div>
         </div>
       </div>
 
@@ -236,27 +275,28 @@ export default function AlumniManagement() {
       ) : activeTab === 'eligibility' ? (
         <div className="bg-white rounded-md border border-slate-100 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
           <div className="overflow-auto custom-scrollbar flex-1">
-            <table className="w-full text-left border-collapse text-[11px] min-w-[1000px]">
+            <table className="w-full text-left border-collapse text-[11px] min-w-[1100px]">
               <thead className="bg-slate-50 sticky top-0 z-20 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Student identity</th>
-                  <th className="px-6 py-4 text-[#dac48b] font-bold uppercase tracking-wider text-center">Authorization Gmail</th>
-                  <th className="px-6 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Professional Link</th>
-                  <th className="px-6 py-4 text-[#dac48b] font-bold uppercase tracking-wider text-right pr-8">Actions</th>
+                  <th className="px-5 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Student identity</th>
+                  <th className="px-5 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Authorization Gmail</th>
+                  <th className="px-5 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Phone Number</th>
+                  <th className="px-5 py-4 text-[#dac48b] font-bold uppercase tracking-wider">Professional Link</th>
+                  <th className="px-5 py-4 text-[#dac48b] font-bold uppercase tracking-wider text-right pr-8">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {eligibleStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                       <CheckCircle2 size={32} className="mx-auto text-slate-200 mb-3" />
                       <p className="text-xs font-bold uppercase tracking-wide">No students identified for graduating transition.</p>
                     </td>
                   </tr>
                 ) : currentEligibleData.map((std, idx) => (
                   <tr key={std.id} className="hover:bg-slate-50/40 transition-all group align-middle">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3.5">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-3">
                         <div className="w-9 h-9 rounded-md bg-slate-100 text-[#dac48b] flex items-center justify-center font-bold text-sm border border-slate-200 group-hover:bg-white transition-all shrink-0">
                           {std.name[0]}
                         </div>
@@ -269,21 +309,59 @@ export default function AlumniManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="email"
-                        placeholder="Gmail username"
-                        value={std.gmailId}
-                        onChange={(e) => {
-                          const absoluteIdx = (currentPage - 1) * rowsPerPage + idx;
-                          const newList = [...eligibleStudents];
-                          newList[absoluteIdx].gmailId = e.target.value;
-                          setEligibleStudents(newList);
-                        }}
-                        className="w-full px-3 py-2 rounded-md focus:ring-2 focus:ring-[#dac48b]/20 focus:bg-white text-xs font-bold transition-all outline-none"
-                      />
+                    <td className="px-5 py-4">
+                      <div className="relative">
+                        <Mail size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="email"
+                          placeholder="Gmail address"
+                          value={std.gmailId}
+                          onChange={(e) => {
+                            const absoluteIdx = (currentPage - 1) * rowsPerPage + idx;
+                            const newList = [...eligibleStudents];
+                            newList[absoluteIdx].gmailId = e.target.value;
+                            setEligibleStudents(newList);
+                          }}
+                          className="w-full pl-8 pr-3 py-2 rounded-md border border-slate-200 focus:border-[#dac48b] focus:ring-2 focus:ring-[#dac48b]/20 focus:bg-white text-xs font-bold transition-all outline-none"
+                        />
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-1.5">
+                        <select
+                          value={std.countryCode || '+91'}
+                          onChange={(e) => {
+                            const absoluteIdx = (currentPage - 1) * rowsPerPage + idx;
+                            const newList = [...eligibleStudents];
+                            newList[absoluteIdx].countryCode = e.target.value;
+                            setEligibleStudents(newList);
+                          }}
+                          className="w-24 px-2 py-2 rounded-md border border-slate-200 bg-white text-[11px] font-bold text-slate-700 outline-none focus:border-[#dac48b]"
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.flag} {c.code}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="relative flex-1">
+                          <Phone size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            type="tel"
+                            placeholder="Mobile number"
+                            value={std.phoneNumber || ''}
+                            onChange={(e) => {
+                              const absoluteIdx = (currentPage - 1) * rowsPerPage + idx;
+                              const newList = [...eligibleStudents];
+                              newList[absoluteIdx].phoneNumber = e.target.value;
+                              setEligibleStudents(newList);
+                            }}
+                            className="w-full pl-8 pr-2 py-2 rounded-md border border-slate-200 focus:border-[#dac48b] focus:ring-2 focus:ring-[#dac48b]/20 focus:bg-white text-xs font-bold transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
                       <div className="relative">
                         <Link2 size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
                         <input
@@ -296,11 +374,11 @@ export default function AlumniManagement() {
                             newList[absoluteIdx].linkedIn = e.target.value;
                             setEligibleStudents(newList);
                           }}
-                          className="w-full pl-9 pr-3 py-2 rounded-md focus:ring-2 focus:ring-[#dac48b]/20 focus:bg-white text-xs font-bold transition-all outline-none"
+                          className="w-full pl-9 pr-3 py-2 rounded-md border border-slate-200 focus:border-[#dac48b] focus:ring-2 focus:ring-[#dac48b]/20 focus:bg-white text-xs font-bold transition-all outline-none"
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right pr-8 relative">
+                    <td className="px-5 py-4 text-right pr-8 relative">
                       <button
                         onClick={() => handleConvert(std)}
                         disabled={processingId === std.id}
@@ -404,6 +482,12 @@ export default function AlumniManagement() {
                             <Mail size={12} className="mr-2 text-slate-300" />
                             {a.email}
                           </p>
+                          {(a.phone || a.mobileNumber) && (
+                            <p className="text-[10px] font-bold text-slate-500 flex items-center">
+                              <Phone size={11} className="mr-2 text-slate-400" />
+                              {a.phone || `${a.countryCode || '+91'} ${a.mobileNumber}`}
+                            </p>
+                          )}
                           <p className="text-[9px] text-slate-400 font-medium italic ml-5">
                             Created {new Date(a.createdAt).toLocaleDateString()}
                           </p>

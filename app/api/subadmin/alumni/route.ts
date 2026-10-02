@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     if (type === 'eligible') {
       // Fetch eligible students not already in Alumni table
       const result = await pool.query(`
-        SELECT s.id, s.name, s."studentCode", std."standardName", std."batchYear"
+        SELECT s.id, s.name, s."studentCode", s."contactNo", std."standardName", std."batchYear"
         FROM "Student" s
         JOIN "Standard" std ON s."standardId" = std.id
         LEFT JOIN "Alumni" a ON s.id = a."studentId"
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       const dirCondition = standardFilter === 'All' ? `(${standardCondition} OR std.id IS NULL)` : standardCondition;
       
       const result = await pool.query(`
-	        SELECT a.id, a.name, a.email, a."linkedIn", a."batchYear", a."studentId", a."createdAt", a."isFeatured", std."standardName"
+        SELECT a.id, a.name, a.email, a."linkedIn", a."batchYear", a."studentId", a."createdAt", a."isFeatured", a.phone, a."countryCode", a."mobileNumber", std."standardName"
         FROM "Alumni" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
         LEFT JOIN "Standard" std ON s."standardId" = std.id
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const { studentId, gmailId, linkedIn, batchYear } = await request.json();
+    const { studentId, gmailId, linkedIn, batchYear, countryCode = '+91', phoneNumber, phone } = await request.json();
 
     if (!studentId || !gmailId) {
       return NextResponse.json({ error: 'Student ID and Gmail are required' }, { status: 400 });
@@ -163,12 +163,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Alumni with this email already exists' }, { status: 400 });
     }
 
+    const rawPhone = phoneNumber || phone || '';
+    const fullPhone = rawPhone ? `${countryCode} ${rawPhone}`.trim() : null;
+
     const result = await pool.query(`
       INSERT INTO "Alumni" (
-        name, email, password, "linkedIn", "batchYear", "studentId", "schoolId"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        name, email, password, "linkedIn", "batchYear", "studentId", "schoolId", "phone", "countryCode", "mobileNumber"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
-    `, [studentName, gmailId, hashedPassword, linkedIn || null, batchYear || 'Unknown', studentId, session.schoolId]);
+    `, [studentName, gmailId, hashedPassword, linkedIn || null, batchYear || 'Unknown', studentId, session.schoolId, fullPhone, countryCode, rawPhone || null]);
 
     // Query School Name for welcome email
     let schoolName = 'School Administration';

@@ -37,6 +37,8 @@ export async function ensureAlumniOnboardingTables() {
       name varchar(255) NOT NULL,
       email varchar(255) NOT NULL,
       phone varchar(50),
+      "countryCode" varchar(10),
+      "mobileNumber" varchar(50),
       "batchYear" varchar(100),
       "currentTitle" varchar(255),
       "currentBio" text,
@@ -50,6 +52,13 @@ export async function ensureAlumniOnboardingTables() {
       "updatedAt" timestamp with time zone DEFAULT now()
     )
   `);
+
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "countryCode" varchar(10)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "mobileNumber" varchar(50)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
+  await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
+  await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "countryCode" varchar(10)');
+  await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "mobileNumber" varchar(50)');
 
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_token_idx" ON "AlumniInvite" (token)');
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_school_idx" ON "AlumniInvite" ("schoolId", status, "createdAt" DESC)');
@@ -198,8 +207,8 @@ export async function createApprovedAlumniFromRequest(registration: any, request
 
   const alumniRes = await pool.query(
     `INSERT INTO "Alumni" (
-      name, email, password, "batchYear", "currentTitle", "currentBio", "linkedIn", "schoolId"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      name, email, password, "batchYear", "currentTitle", "currentBio", "linkedIn", "schoolId", "phone", "countryCode", "mobileNumber"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *`,
     [
       registration.name,
@@ -210,6 +219,9 @@ export async function createApprovedAlumniFromRequest(registration: any, request
       registration.currentBio || null,
       registration.linkedIn || null,
       registration.schoolId,
+      registration.phone || registration.mobileNumber || null,
+      registration.countryCode || '+91',
+      registration.mobileNumber || registration.phone || null,
     ]
   );
 
