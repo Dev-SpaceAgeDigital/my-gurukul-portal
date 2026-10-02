@@ -11,6 +11,7 @@ type LoginOtpInput = {
   role: UserRole;
   email: string;
   schoolId?: string | null;
+  trustId?: string | null;
   userId?: string | null;
   name?: string | null;
 };
@@ -38,8 +39,99 @@ export async function startLoginOtp(input: LoginOtpInput) {
   const otp = isDemo ? DEMO_OTP : String(crypto.randomInt(100000, 999999));
   const otpKey = getOtpKey(input.role, email);
   const attemptsKey = getAttemptsKey(input.role, email);
-  const brandName = 'My Gurukul Platform';
-  const subject = `${otp} is your ${brandName} login OTP`;
+
+  // Dynamically resolve tenant trust & school branding
+  let resolvedBrandName = 'Institutional Platform';
+  let resolvedTrustName: string | undefined = undefined;
+  let resolvedSchoolName: string | undefined = undefined;
+  let resolvedLogoUrl: string | undefined = undefined;
+  let resolvedPrimaryColor: string = '#1A6B5A';
+  let effectiveSchoolId = input.schoolId || undefined;
+  let effectiveTrustId = input.trustId || undefined;
+
+  try {
+    const { default: pool } = await import('@/lib/db');
+
+    if (effectiveSchoolId) {
+      const sRes = await pool.query(
+        `SELECT s."schoolName", s."logoUrl" as "schoolLogo", t.id as "tId", t."trustName", t."logoUrl" as "trustLogo", t."primaryColor"
+         FROM "School" s
+         LEFT JOIN "Trust" t ON s."trustId" = t.id
+         WHERE s.id = $1`,
+        [effectiveSchoolId]
+      );
+      if (sRes.rows.length > 0) {
+        const row = sRes.rows[0];
+        resolvedSchoolName = row.schoolName;
+        resolvedTrustName = row.trustName;
+        resolvedLogoUrl = row.schoolLogo || row.trustLogo;
+        resolvedPrimaryColor = row.primaryColor || '#1A6B5A';
+        effectiveTrustId = effectiveTrustId || row.tId;
+      }
+    } else if (effectiveTrustId) {
+      const tRes = await pool.query(
+        `SELECT "trustName", "logoUrl", "primaryColor" FROM "Trust" WHERE id = $1`,
+        [effectiveTrustId]
+      );
+      if (tRes.rows.length > 0) {
+        const row = tRes.rows[0];
+        resolvedTrustName = row.trustName;
+        resolvedLogoUrl = row.logoUrl;
+        resolvedPrimaryColor = row.primaryColor || '#1A6B5A';
+      }
+    } else if (input.userId) {
+      // Look up User / Alumni entity directly
+      if (input.role === 'ALUMNI') {
+        const aRes = await pool.query(
+          `SELECT a."schoolId", s."schoolName", s."logoUrl" as "schoolLogo", t.id as "trustId", t."trustName", t."logoUrl" as "trustLogo", t."primaryColor"
+           FROM "Alumni" a
+           LEFT JOIN "School" s ON a."schoolId" = s.id
+           LEFT JOIN "Trust" t ON s."trustId" = t.id
+           WHERE a.id = $1`,
+          [input.userId]
+        );
+        if (aRes.rows.length > 0) {
+          const row = aRes.rows[0];
+          effectiveSchoolId = row.schoolId;
+          effectiveTrustId = row.trustId;
+          resolvedSchoolName = row.schoolName;
+          resolvedTrustName = row.trustName;
+          resolvedLogoUrl = row.schoolLogo || row.trustLogo;
+          resolvedPrimaryColor = row.primaryColor || '#1A6B5A';
+        }
+      } else {
+        const uRes = await pool.query(
+          `SELECT u."schoolId", u."trustId", s."schoolName", s."logoUrl" as "schoolLogo", t."trustName", t."logoUrl" as "trustLogo", t."primaryColor"
+           FROM "User" u
+           LEFT JOIN "School" s ON u."schoolId" = s.id
+           LEFT JOIN "Trust" t ON u."trustId" = t.id OR s."trustId" = t.id
+           WHERE u.id = $1`,
+          [input.userId]
+        );
+        if (uRes.rows.length > 0) {
+          const row = uRes.rows[0];
+          effectiveSchoolId = row.schoolId;
+          effectiveTrustId = row.trustId;
+          resolvedSchoolName = row.schoolName;
+          resolvedTrustName = row.trustName;
+          resolvedLogoUrl = row.schoolLogo || row.trustLogo;
+          resolvedPrimaryColor = row.primaryColor || '#1A6B5A';
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[LoginOtp] Failed to query tenant details:', err);
+  }
+
+  if (input.role === 'SUPER_ADMIN') {
+    resolvedBrandName = resolvedTrustName || 'Trust Governance';
+  } else if (resolvedSchoolName && resolvedTrustName) {
+    resolvedBrandName = `${resolvedSchoolName} | ${resolvedTrustName}`;
+  } else {
+    resolvedBrandName = resolvedSchoolName || resolvedTrustName || 'Institutional Portal';
+  }
+
+  const subject = `${otp} is your ${resolvedBrandName} login OTP`;
 
   await redis.set(otpKey, JSON.stringify({ otp, email, role: input.role }), { ex: OTP_TTL_SECONDS });
   await redis.del(attemptsKey);
@@ -48,12 +140,24 @@ export async function startLoginOtp(input: LoginOtpInput) {
     const result = await sendEmail({
       to: email,
       subject,
-      html: buildLoginOtpEmail({ otp, role: input.role, name: input.name, brandName }),
-      schoolId: input.schoolId || undefined,
+      schoolName: resolvedSchoolName,
+      trustName: resolvedTrustName,
+      schoolId: effectiveSchoolId,
+      trustId: effectiveTrustId,
+      html: buildLoginOtpEmail({
+        otp,
+        role: input.role,
+        name: input.name,
+        brandName: resolvedBrandName,
+        trustName: resolvedTrustName,
+        schoolName: resolvedSchoolName,
+        logoUrl: resolvedLogoUrl,
+        primaryColor: resolvedPrimaryColor,
+      }),
     });
 
     await logEmail({
-      schoolId: input.schoolId,
+      schoolId: effectiveSchoolId || null,
       alumniId: input.role === 'ALUMNI' ? input.userId : null,
       recipientEmail: email,
       recipientRole: input.role,
@@ -93,7 +197,6 @@ export async function startLoginOtp(input: LoginOtpInput) {
   }
 }
 
-
 export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInput: string) {
   const email = normalizeLoginEmail(emailInput);
   const otp = String(otpInput || '').trim();
@@ -121,7 +224,7 @@ export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInpu
 
   const stored = await redis.get(otpKey);
   if (!stored) {
-    if (isDemo) return { ok: true }; // Fallback for demo mode if redis key expired
+    if (isDemo) return { ok: true };
     return { ok: false, error: 'OTP expired. Please login again.' };
   }
 
@@ -145,21 +248,59 @@ function getAttemptsKey(role: UserRole, email: string) {
   return `login-otp-attempts:${role}:${email}`;
 }
 
-function buildLoginOtpEmail({ otp, role, name, brandName }: { otp: string; role: UserRole; name?: string | null; brandName?: string }) {
-  const portalName = role === 'SUPER_ADMIN' ? 'Superadmin Portal' : role === 'SUB_ADMIN' ? 'Subadmin Portal' : 'Alumni Portal';
-  const headerText = (brandName || 'My Gurukul Platform').toUpperCase();
+function buildLoginOtpEmail({
+  otp,
+  role,
+  name,
+  brandName,
+  trustName,
+  schoolName,
+  logoUrl,
+  primaryColor,
+}: {
+  otp: string;
+  role: UserRole;
+  name?: string | null;
+  brandName: string;
+  trustName?: string;
+  schoolName?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+}) {
+  const portalName =
+    role === 'SUPER_ADMIN'
+      ? `${trustName || 'Trust'} Governance Console`
+      : role === 'SUB_ADMIN'
+      ? `${schoolName || 'School'} Admin Portal`
+      : `${schoolName || 'Alumni'} Network Portal`;
+
+  const headerColor = primaryColor && primaryColor.startsWith('#') ? primaryColor : '#1A6B5A';
+  const logoHtml = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('/'))
+    ? `<div style="text-align: center; margin-bottom: 12px;"><img src="${escapeHtml(logoUrl.startsWith('http') ? logoUrl : 'https://portal.my-gurukul.org' + logoUrl)}" alt="${escapeHtml(brandName)}" style="max-height: 48px; max-width: 160px; object-fit: contain; background: #ffffff; padding: 4px; border-radius: 8px;" /></div>`
+    : '';
+
   return `
-    <div style="font-family: Arial, sans-serif; background: #f4f7f6; padding: 28px;">
-      <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border: 1px solid #dbe7e4; border-radius: 16px; overflow: hidden;">
-        <div style="background: #1A6B5A; color: #ffffff; padding: 24px; text-align: center;">
-          <h2 style="margin: 0; font-size: 20px;">${escapeHtml(headerText)}</h2>
-          <p style="margin: 6px 0 0; color: #c5e8df; font-size: 13px;">${portalName} secure login</p>
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; padding: 32px 16px;">
+      <div style="max-width: 500px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="background: ${headerColor}; color: #ffffff; padding: 26px 20px; text-align: center;">
+          ${logoHtml}
+          <h2 style="margin: 0; font-size: 19px; font-weight: 700; letter-spacing: 0.5px;">${escapeHtml(brandName.toUpperCase())}</h2>
+          <p style="margin: 6px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 13px;">${escapeHtml(portalName)} Secure Login</p>
         </div>
-        <div style="padding: 28px; color: #1f2937;">
-          <p style="margin: 0 0 14px; font-size: 15px;">Greetings${name ? `, <strong>${escapeHtml(name)}</strong>` : ''}.</p>
-          <p style="margin: 0 0 18px; color: #4b5563; font-size: 14px; line-height: 1.6;">Use this one-time password to complete your login. It expires in 5 minutes.</p>
-          <div style="font-size: 34px; letter-spacing: 8px; font-weight: 800; color: #1A6B5A; background: #EAF4F0; border-radius: 12px; padding: 18px; text-align: center;">${otp}</div>
-          <p style="margin: 18px 0 0; color: #718096; font-size: 12px;">If you did not request this login, please ignore this email.</p>
+        <div style="padding: 30px 24px; color: #1e293b;">
+          <p style="margin: 0 0 12px; font-size: 15px; color: #334155;">Greetings${name ? `, <strong>${escapeHtml(name)}</strong>` : ''}.</p>
+          <p style="margin: 0 0 20px; color: #64748b; font-size: 14px; line-height: 1.5;">Use this one-time password to complete your login. It expires in <strong>5 minutes</strong>.</p>
+          
+          <div style="font-size: 36px; letter-spacing: 10px; font-weight: 800; color: ${headerColor}; background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 18px 12px; text-align: center; margin: 16px 0;">
+            ${otp}
+          </div>
+          
+          <p style="margin: 20px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.4; text-align: center;">
+            If you did not request this login, you can safely ignore this email.
+          </p>
+        </div>
+        <div style="background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 12px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+          Secured by ${escapeHtml(trustName || brandName)} Identity & Access Management
         </div>
       </div>
     </div>
@@ -174,3 +315,4 @@ function escapeHtml(value: string) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+

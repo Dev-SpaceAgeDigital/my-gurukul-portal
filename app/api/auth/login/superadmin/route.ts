@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       role: 'SUPER_ADMIN',
       email: user.email,
       userId: user.id,
+      trustId: user.trustId,
       schoolId: user.schoolId,
       name: user.name,
     });
