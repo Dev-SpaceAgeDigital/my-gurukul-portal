@@ -15,6 +15,7 @@ export interface AuthSession {
   role: UserRole;
   email: string;
   schoolId?: string;
+  trustId?: string;
 }
 
 // Password utility
