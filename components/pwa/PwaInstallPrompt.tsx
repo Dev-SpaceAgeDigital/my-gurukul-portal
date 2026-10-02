@@ -2,7 +2,71 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Download, X, Smartphone, Sparkles, Shield, GraduationCap, Building2 } from 'lucide-react';
+import { Download, X, Smartphone, Shield, GraduationCap, Building2 } from 'lucide-react';
+
+interface RoleTheme {
+  containerBg: string;
+  borderColor: string;
+  glowColor: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeTextColor: string;
+  badgeIcon: React.ReactNode;
+  badgeText: string;
+  titleSuffix: string;
+  installBtn: string;
+}
+
+const THEMES: Record<string, RoleTheme> = {
+  SUPER_ADMIN: {
+    containerBg: 'bg-gradient-to-br from-[#0b1525] via-[#112240] to-[#16325c]',
+    borderColor: 'border-[#3f72af]/40 shadow-[0_20px_50px_rgba(11,21,37,0.6)]',
+    glowColor: 'bg-[#3f72af]/30',
+    badgeBg: 'bg-[#3f72af]/20',
+    badgeBorder: 'border-[#3f72af]/40',
+    badgeTextColor: 'text-[#93c5fd]',
+    badgeIcon: <Shield size={11} className="text-amber-400" />,
+    badgeText: 'Executive Governance',
+    titleSuffix: 'Superadmin Portal',
+    installBtn: 'bg-gradient-to-r from-[#3f72af] via-[#4d86c8] to-[#93c5fd] text-white font-extrabold shadow-lg shadow-[#3f72af]/30',
+  },
+  SUB_ADMIN: {
+    containerBg: 'bg-gradient-to-br from-[#064e3b] via-[#042f2e] to-[#0f3b39]',
+    borderColor: 'border-emerald-500/40 shadow-[0_20px_50px_rgba(4,47,46,0.6)]',
+    glowColor: 'bg-emerald-400/25',
+    badgeBg: 'bg-emerald-500/20',
+    badgeBorder: 'border-emerald-400/40',
+    badgeTextColor: 'text-[#6ee7b7]',
+    badgeIcon: <Building2 size={11} className="text-emerald-300" />,
+    badgeText: 'School Management',
+    titleSuffix: 'School Officer App',
+    installBtn: 'bg-gradient-to-r from-emerald-400 via-teal-400 to-teal-300 text-slate-950 font-black shadow-lg shadow-emerald-950/40',
+  },
+  ALUMNI: {
+    containerBg: 'bg-gradient-to-br from-[#1e1b4b] via-[#2e1065] to-[#1e293b]',
+    borderColor: 'border-violet-500/40 shadow-[0_20px_50px_rgba(30,27,75,0.6)]',
+    glowColor: 'bg-violet-400/30',
+    badgeBg: 'bg-violet-500/20',
+    badgeBorder: 'border-violet-400/40',
+    badgeTextColor: 'text-[#d8b4fe]',
+    badgeIcon: <GraduationCap size={11} className="text-violet-300" />,
+    badgeText: 'Alumni Network',
+    titleSuffix: 'Alumni Network App',
+    installBtn: 'bg-gradient-to-r from-violet-400 via-purple-400 to-indigo-300 text-slate-950 font-black shadow-lg shadow-violet-950/40',
+  },
+  DEFAULT: {
+    containerBg: 'bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0b1525]',
+    borderColor: 'border-sky-500/40 shadow-[0_20px_50px_rgba(15,23,42,0.6)]',
+    glowColor: 'bg-sky-400/25',
+    badgeBg: 'bg-sky-500/20',
+    badgeBorder: 'border-sky-400/40',
+    badgeTextColor: 'text-[#7dd3fc]',
+    badgeIcon: <Smartphone size={11} className="text-sky-300" />,
+    badgeText: 'Mobile Portal',
+    titleSuffix: 'App',
+    installBtn: 'bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-400 text-slate-950 font-black shadow-lg shadow-sky-950/40',
+  },
+};
 
 export default function PwaInstallPrompt() {
   const [mounted, setMounted] = useState(false);
@@ -34,7 +98,7 @@ export default function PwaInstallPrompt() {
                 setUserData({
                   schoolName: tData.tenantType === 'SCHOOL' ? tData.name : null,
                   trustName: tData.trustName || tData.name,
-                  logoUrl: tData.logoUrl
+                  logoUrl: tData.logoUrl,
                 });
               }
             })
@@ -49,7 +113,7 @@ export default function PwaInstallPrompt() {
               setUserData({
                 schoolName: tData.tenantType === 'SCHOOL' ? tData.name : null,
                 trustName: tData.trustName || tData.name,
-                logoUrl: tData.logoUrl
+                logoUrl: tData.logoUrl,
               });
             }
           })
@@ -86,55 +150,44 @@ export default function PwaInstallPrompt() {
   const logoUrl = userData?.logoUrl || '/my-gurukul.png';
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-  const effectiveRole = role || (currentPath.startsWith('/subadmin') ? 'SUB_ADMIN' : currentPath.startsWith('/alumni') ? 'ALUMNI' : currentPath.startsWith('/superadmin') ? 'SUPER_ADMIN' : null);
+  const effectiveRole =
+    role ||
+    (currentPath.startsWith('/superadmin')
+      ? 'SUPER_ADMIN'
+      : currentPath.startsWith('/subadmin')
+      ? 'SUB_ADMIN'
+      : currentPath.startsWith('/alumni')
+      ? 'ALUMNI'
+      : 'DEFAULT');
 
-  const appTitle =
-    effectiveRole === 'SUPER_ADMIN'
-      ? `${tenantName} Superadmin Portal`
-      : effectiveRole === 'SUB_ADMIN'
-      ? `${tenantName} School Officer App`
-      : effectiveRole === 'ALUMNI'
-      ? `${tenantName} Alumni Network App`
-      : `${tenantName} App`;
+  const currentTheme = THEMES[effectiveRole] || THEMES.DEFAULT;
+  const appTitle = `${tenantName} ${currentTheme.titleSuffix}`;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-[999] animate-in slide-in-from-bottom-5 duration-300">
-      <div className="bg-gradient-to-br from-[#1b4a50] via-[#143d43] to-[#0d2a4a] text-white p-4 rounded-2xl shadow-2xl border border-teal-500/30 backdrop-blur-md relative overflow-hidden group">
-        {/* Background glow */}
-        <div className="absolute -right-8 -top-8 w-24 h-24 bg-teal-400/20 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+      <div
+        className={`${currentTheme.containerBg} ${currentTheme.borderColor} text-white p-4 rounded-2xl shadow-2xl border backdrop-blur-md relative overflow-hidden group transition-all duration-300`}
+      >
+        {/* Ambient Glow */}
+        <div
+          className={`absolute -right-8 -top-8 w-24 h-24 ${currentTheme.glowColor} rounded-full blur-xl group-hover:scale-150 transition-transform duration-500`}
+        />
 
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="flex items-center gap-3">
             {/* Dynamic School / Trust Logo Image */}
-            <div className="w-12 h-12 rounded-xl bg-white/90 p-1 flex items-center justify-center border border-white/20 shadow-md shrink-0 relative overflow-hidden">
+            <div className="w-12 h-12 rounded-xl bg-white/95 p-1 flex items-center justify-center border border-white/20 shadow-md shrink-0 relative overflow-hidden">
               <Image src={logoUrl} alt="Logo" width={44} height={44} className="object-contain" priority />
             </div>
 
-            <div>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-[#AAFFC7] text-[10px] font-bold tracking-wide uppercase border border-white/10 mb-1">
-                {effectiveRole === 'SUPER_ADMIN' ? (
-                  <>
-                    <Shield size={11} className="text-amber-400" />
-                    <span>Executive Access</span>
-                  </>
-                ) : effectiveRole === 'SUB_ADMIN' ? (
-                  <>
-                    <Building2 size={11} className="text-teal-300" />
-                    <span>School Management</span>
-                  </>
-                ) : effectiveRole === 'ALUMNI' ? (
-                  <>
-                    <GraduationCap size={11} className="text-emerald-300" />
-                    <span>Alumni Network</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone size={11} />
-                    <span>My Gurukul App</span>
-                  </>
-                )}
+            <div className="min-w-0">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ${currentTheme.badgeBg} ${currentTheme.badgeTextColor} ${currentTheme.badgeBorder} border text-[10px] font-bold tracking-wide uppercase mb-1 shadow-sm`}
+              >
+                {currentTheme.badgeIcon}
+                <span>{currentTheme.badgeText}</span>
               </span>
-              <h4 className="text-sm font-bold text-white leading-tight">{appTitle}</h4>
+              <h4 className="text-sm font-bold text-white leading-tight truncate">{appTitle}</h4>
               <p className="text-[11px] text-slate-300 font-medium mt-0.5">
                 Add to your home screen for 1-tap access & push alerts!
               </p>
@@ -153,7 +206,7 @@ export default function PwaInstallPrompt() {
         <div className="mt-3.5 flex items-center gap-2 relative z-10">
           <button
             onClick={handleInstallClick}
-            className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className={`flex-1 py-2 px-3 rounded-xl ${currentTheme.installBtn} text-xs hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer`}
           >
             <Download size={14} className="stroke-[3]" />
             <span>Add to Home Screen</span>
@@ -161,7 +214,7 @@ export default function PwaInstallPrompt() {
 
           <button
             onClick={() => setShowPrompt(false)}
-            className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-semibold transition-all cursor-pointer"
+            className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer border border-white/10"
           >
             Later
           </button>
