@@ -460,7 +460,7 @@ export async function generate80GCertificatePdf({
     y: height - 495,
     width: width - 90,
     height: 330,
-    color: rgb(255, 255, 255),
+    color: rgb(1, 1, 1),
     borderColor: borderGreen,
     borderWidth: 1,
   });
