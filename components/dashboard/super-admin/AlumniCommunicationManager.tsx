@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckSquare, Loader2, Mail, Search, Send, Square, Users } from 'lucide-react';
+import { Calendar, CheckSquare, Clock, Loader2, Mail, Search, Send, Square, Users, Video } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
 
 type AlumniRow = {
@@ -28,16 +28,17 @@ export default function AlumniCommunicationManager() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [meetForm, setMeetForm] = useState({
-    subject: 'Madni Alumni Google Meet Invitation',
+    subject: 'Alumni Google Meet Invitation',
     meetLink: '',
-    meetingAt: '',
+    meetingDate: '',
+    meetingTime: '',
     message: 'Please join this alumni meet using the Google Meet link below.',
   });
   const [inviteForm, setInviteForm] = useState({
     schoolId: '',
     batchYear: '',
     emails: '',
-    message: 'We warmly invite you to join the Madni Alumni Family.',
+    message: 'We warmly invite you to join the Alumni Family.',
   });
   const { dialog, showAlert } = usePortalDialog();
 
@@ -183,15 +184,78 @@ export default function AlumniCommunicationManager() {
             </div>
 
             <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4 h-fit">
-              <h3 className="font-black text-slate-900 flex items-center gap-2"><Mail size={18} className="text-[#3f72af]" /> Send Meet Link</h3>
-              <p className="text-xs font-bold text-slate-500">Selected alumni: {selected.length}</p>
-              <input value={meetForm.subject} onChange={(e) => setMeetForm({ ...meetForm, subject: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" placeholder="Email subject" />
-              <input value={meetForm.meetLink} onChange={(e) => setMeetForm({ ...meetForm, meetLink: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" placeholder="Google Meet link" />
-              <input value={meetForm.meetingAt} onChange={(e) => setMeetForm({ ...meetForm, meetingAt: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" placeholder="Meeting date/time" />
-              <textarea value={meetForm.message} onChange={(e) => setMeetForm({ ...meetForm, message: e.target.value })} rows={4} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" />
-              <button onClick={sendMeet} disabled={sending || selected.length === 0} className="w-full rounded-xl bg-[#3f72af] text-white py-3 text-sm font-black disabled:opacity-60 flex items-center justify-center gap-2">
-                {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                Send Meet Link
+              <div>
+                <h3 className="font-black text-slate-900 flex items-center gap-2">
+                  <Video size={18} className="text-[#3f72af]" /> Send Meet Link
+                </h3>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">Selected alumni: {selected.length}</p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Email Subject</label>
+                <input
+                  value={meetForm.subject}
+                  onChange={(e) => setMeetForm({ ...meetForm, subject: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[#3f72af]"
+                  placeholder="Email subject"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Google Meet Link</label>
+                <div className="relative">
+                  <Video size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={meetForm.meetLink}
+                    onChange={(e) => setMeetForm({ ...meetForm, meetLink: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[#3f72af]"
+                    placeholder="https://meet.google.com/xyz-abcd-efg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Meeting Date & Time</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={meetForm.meetingDate}
+                      onChange={(e) => setMeetForm({ ...meetForm, meetingDate: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 pl-9 pr-2 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#3f72af]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="time"
+                      value={meetForm.meetingTime}
+                      onChange={(e) => setMeetForm({ ...meetForm, meetingTime: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 pl-9 pr-2 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#3f72af]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Message</label>
+                <textarea
+                  value={meetForm.message}
+                  onChange={(e) => setMeetForm({ ...meetForm, message: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#3f72af]"
+                  placeholder="Custom note or agenda for alumni..."
+                />
+              </div>
+
+              <button
+                onClick={sendMeet}
+                disabled={sending || selected.length === 0 || !meetForm.meetLink.trim()}
+                className="w-full rounded-xl bg-[#3f72af] hover:bg-[#325d91] text-white py-3 text-xs font-black disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-[0.98]"
+              >
+                {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                Send Meet Link ({selected.length})
               </button>
             </div>
           </div>
