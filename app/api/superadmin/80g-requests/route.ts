@@ -161,18 +161,20 @@ export async function POST(req: Request) {
     });
 
     let emailSent = false;
-    const pdfBase64 = pdfBuffer.toString('base64');
-    const sendResult = await sendEmail({
-      from: FROM_EMAIL,
-      to: item.donorEmail,
-      subject: `Official Section 80G Tax Exemption Certificate - ${item.donorName}`,
-      attachments: [
-        {
-          filename: `80G_Tax_Certificate_${receiptNo}.pdf`,
-          content: pdfBase64,
-        },
-      ],
-      html: `
+    let emailError: string | null = null;
+    try {
+      const pdfBase64 = pdfBuffer.toString('base64');
+      const sendResult = await sendEmail({
+        from: FROM_EMAIL,
+        to: item.donorEmail,
+        subject: `Official Section 80G Tax Exemption Certificate - ${item.donorName}`,
+        attachments: [
+          {
+            filename: `80G_Tax_Certificate_${receiptNo}.pdf`,
+            content: pdfBase64,
+          },
+        ],
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
           <div style="text-align: center; border-bottom: 2px solid #166534; padding-bottom: 16px; margin-bottom: 20px;">
             <h2 style="color: #166534; margin: 0; font-size: 20px;">${(trustName || item.schoolName || 'Education Trust').toUpperCase()}</h2>
@@ -203,10 +205,16 @@ export async function POST(req: Request) {
           </div>
         </div>
       `,
-    });
+      });
 
-    if (sendResult.ok) {
-      emailSent = true;
+      if (sendResult && sendResult.ok) {
+        emailSent = true;
+      } else if (sendResult && sendResult.error) {
+        emailError = sendResult.error;
+      }
+    } catch (mailErr: any) {
+      console.error('80G Email sending failed:', mailErr);
+      emailError = mailErr?.message || 'Failed to dispatch email';
     }
 
     // Update status in DB with receiptNo and sentAt
@@ -240,13 +248,14 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       emailSent,
+      emailError,
       receiptNo,
       message: emailSent
-        ? `Official 80G Certificate successfully generated and emailed to ${item.donorEmail}!`
-        : `80G Request approved and certificate generated successfully!`,
+        ? `Official 80G Certificate (${receiptNo}) successfully generated and emailed to ${item.donorEmail}!`
+        : `80G Request approved and certificate (${receiptNo}) generated! ${emailError ? `(Email Note: ${emailError})` : ''}`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Approve 80G request error:', error);
-    return NextResponse.json({ error: 'Failed to process 80G request' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Failed to process 80G request' }, { status: 500 });
   }
 }

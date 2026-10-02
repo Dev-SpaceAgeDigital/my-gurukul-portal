@@ -291,7 +291,7 @@ export async function generate80GCertificatePdf({
   receiptNo: string;
   paidAt: string;
   donorName: string;
-  donorPan: string;
+  donorPan?: string | null;
   donorPhone?: string | null;
   donorEmail?: string | null;
   schoolName?: string;
@@ -330,6 +330,8 @@ export async function generate80GCertificatePdf({
 
   const institutionName = trustName || schoolName || 'EduTrust & Welfare Society';
   const reg80G = taxExemptionNo || 'AABTM1234F21EE01';
+  const safePan = donorPan ? String(donorPan).trim().toUpperCase() : 'N/A';
+  const safeAmount = Number(amount || 0);
 
   // Triple Border for Official Certificate Look
   page.drawRectangle({
@@ -433,15 +435,15 @@ export async function generate80GCertificatePdf({
   const items: Array<[string, string]> = [
     ['80G Certificate No:', receiptNo],
     ['Date of Issuance:', paidAt],
-    ['Donor Full Name:', donorName],
-    ['Donor PAN (Tax ID):', donorPan.toUpperCase()],
+    ['Donor Full Name:', donorName || 'Valued Contributor'],
+    ['Donor PAN (Tax ID):', safePan],
     ['Donor Contact / Email:', `${donorPhone || 'N/A'} · ${donorEmail || 'N/A'}`],
     ['Beneficiary Entity:', schoolName || institutionName],
-    ['Purpose of Contribution:', `${campaignTitle} (${donationType})`],
-    ['Donation Amount (INR):', `₹ ${Number(amount).toLocaleString('en-IN')}`],
-    ['Amount in Words:', numberToWordsINR(amount)],
+    ['Purpose of Contribution:', `${campaignTitle || 'General Support'} (${donationType || 'Donation'})`],
+    ['Donation Amount (INR):', `₹ ${safeAmount.toLocaleString('en-IN')}`],
+    ['Amount in Words:', numberToWordsINR(safeAmount)],
     ['Mode of Transfer:', formattedMode],
-    ['Transaction Ref / Payment ID:', paymentId],
+    ['Transaction Ref / Payment ID:', paymentId || 'N/A'],
   ];
 
   for (const [label, val] of items) {
@@ -486,11 +488,11 @@ export async function generate80GCertificatePdf({
   });
 
   page.drawText(
-    `Certified that the above-mentioned voluntary donation of ₹${Number(amount).toLocaleString('en-IN')} has been received from`,
+    `Certified that the above-mentioned voluntary donation of ₹${safeAmount.toLocaleString('en-IN')} has been received from`,
     { x: 60, y: 198, size: 8.5, font: fontRegular, color: dark }
   );
   page.drawText(
-    `${donorName} (PAN: ${donorPan.toUpperCase()}) exclusively for educational, student aid, and charitable activities.`,
+    `${donorName || 'the Donor'} (PAN: ${safePan}) exclusively for educational, student aid, and charitable activities.`,
     { x: 60, y: 184, size: 8.5, font: fontRegular, color: dark }
   );
   page.drawText(
