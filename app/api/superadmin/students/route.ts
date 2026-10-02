@@ -2,45 +2,93 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
-    const session = await getSessionFromCookies('SUPER_ADMIN');
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getSessionFromCookies('ADMIN');
+    if (!session || session.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
+    const schoolId = searchParams.get('schoolId');
     const standardId = searchParams.get('standardId');
     const academicYearId = searchParams.get('academicYearId');
+    const search = searchParams.get('search')?.trim().toLowerCase();
 
-    if (!standardId) {
-      return NextResponse.json({ error: 'Standard ID is required' }, { status: 400 });
+    // 1. Get schools accessible to SuperAdmin
+    let schoolsQuery = `SELECT id, "schoolName" FROM "School"`;
+    const schoolParams: any[] = [];
+    if (session.trustId) {
+      schoolsQuery += ` WHERE "trustId" = $1`;
+      schoolParams.push(session.trustId);
+    }
+    schoolsQuery += ` ORDER BY "schoolName" ASC`;
+    const schoolsRes = await pool.query(schoolsQuery, schoolParams);
+    const accessibleSchools = schoolsRes.rows;
+    const accessibleSchoolIds = accessibleSchools.map((s) => s.id);
+
+    // 2. Build Query
+    const params: any[] = [];
+    let whereClauses: string[] = ['1=1'];
+
+    if (accessibleSchoolIds.length > 0) {
+      params.push(accessibleSchoolIds);
+      whereClauses.push(`s."schoolId" = ANY($${params.length}::uuid[])`);
     }
 
-    if (academicYearId) {
-      const enrollmentsRes = await pool.query(`
-        SELECT s.*, se."rank", se."percentage", se."status" as "enrollmentStatus"
-        FROM "StudentEnrollment" se
-        JOIN "Student" s ON se."studentId" = s."id"
-        WHERE se."standardId" = $1 AND se."academicYearId" = $2 AND se."status" = 'ACTIVE'
-        ORDER BY se."percentage" DESC NULLS LAST
-      `, [standardId, academicYearId]);
-
-      if (enrollmentsRes.rows.length > 0) {
-        return NextResponse.json(enrollmentsRes.rows);
-      }
+    if (schoolId && schoolId !== 'ALL' && schoolId !== '') {
+      params.push(schoolId);
+      whereClauses.push(`s."schoolId" = $${params.length}`);
     }
 
-    // Fallback if no enrollments exist for that batch (or batch is not provided)
-    const fallbackRes = await pool.query(`
-      SELECT s.*, NULL as "rank", NULL as "percentage", 'ACTIVE' as "enrollmentStatus"
+    if (standardId && standardId !== 'ALL' && standardId !== '') {
+      params.push(standardId);
+      whereClauses.push(`s."standardId" = $${params.length}`);
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      whereClauses.push(`(LOWER(s."name") LIKE $${params.length} OR LOWER(COALESCE(s."studentCode", '')) LIKE $${params.length})`);
+    }
+
+    let joinEnrollment = '';
+    if (academicYearId && academicYearId !== 'ALL' && academicYearId !== '') {
+      params.push(academicYearId);
+      joinEnrollment = `LEFT JOIN "StudentEnrollment" se ON se."studentId" = s."id" AND se."academicYearId" = $${params.length}`;
+    } else {
+      joinEnrollment = `LEFT JOIN "StudentEnrollment" se ON se."studentId" = s."id" AND se."status" = 'ACTIVE'`;
+    }
+
+    const query = `
+      SELECT 
+        s.id,
+        s.name,
+        s."studentCode",
+        s."schoolId",
+        s."standardId",
+        s."createdAt",
+        sch."schoolName",
+        std."standardName",
+        COALESCE(se."rank", 0) as rank,
+        COALESCE(se."percentage", 0) as percentage,
+        COALESCE(se."status", 'ACTIVE') as "enrollmentStatus"
       FROM "Student" s
-      WHERE s."standardId" = $1
-      ORDER BY s."name" ASC
-    `, [standardId]);
+      LEFT JOIN "School" sch ON s."schoolId" = sch.id
+      LEFT JOIN "Standard" std ON s."standardId" = std.id
+      ${joinEnrollment}
+      WHERE ${whereClauses.join(' AND ')}
+      ORDER BY COALESCE(se."percentage", 0) DESC, s."name" ASC
+      LIMIT 200
+    `;
 
-    return NextResponse.json(fallbackRes.rows);
+    const result = await pool.query(query, params);
+    return NextResponse.json(result.rows);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('SuperAdmin students fetch error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
+
