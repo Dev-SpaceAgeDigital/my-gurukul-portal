@@ -3,6 +3,22 @@ import path from 'path';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 /**
+ * Sanitizes all text to WinAnsi/ASCII compatible character set for standard Helvetica fonts in pdf-lib.
+ * Replaces Rupee sign (₹), middle dots (·), bullets, em-dashes, and special quotes.
+ */
+export function cleanPdfText(text: any): string {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    .replace(/₹/g, 'Rs. ')
+    .replace(/[•·]/g, '|')
+    .replace(/[–—]/g, '-')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[^\x00-\x7F]/g, '') // strip any non-ASCII character to guarantee 100% WinAnsi compliance
+    .trim();
+}
+
+/**
  * Converts a number to Indian Rupees in words.
  */
 export function numberToWordsINR(num: number): string {
@@ -86,7 +102,16 @@ export async function generateReceiptPdf({
       : paymentMode.toUpperCase()
     : 'Online Payment (Razorpay)';
 
-  const institutionName = trustName || schoolName || 'EduTrust Network';
+  const institutionName = cleanPdfText(trustName || schoolName || 'EduTrust Network');
+  const safeReceiptNo = cleanPdfText(receiptNo);
+  const safePaidAt = cleanPdfText(paidAt);
+  const safeDonorName = cleanPdfText(donorName || 'Valued Donor');
+  const safePan = cleanPdfText(donorPan || 'N/A (Not Provided)');
+  const safeSchoolName = cleanPdfText(schoolName || institutionName);
+  const safeCampaign = cleanPdfText(`${campaignTitle || 'Educational Support'} (${donationType || 'Donation'})`);
+  const safeAmountNum = Number(amount || 0);
+  const safePaymentId = cleanPdfText(paymentId || 'TXN-DIRECT');
+  const safeTaxExemption = cleanPdfText(taxExemptionNo);
 
   // Outer Decorative Border
   page.drawRectangle({
@@ -127,12 +152,12 @@ export async function generateReceiptPdf({
   page.drawText(institutionName.toUpperCase(), {
     x: 50,
     y: height - 88,
-    size: 17,
+    size: 16,
     font: fontBold,
     color: navy,
   });
 
-  page.drawText(`Educational & Charitable Trust ${taxExemptionNo ? `· 80G Reg: ${taxExemptionNo}` : ''}`, {
+  page.drawText(cleanPdfText(`Educational & Charitable Trust ${safeTaxExemption ? `| 80G Reg: ${safeTaxExemption}` : ''}`), {
     x: 50,
     y: height - 105,
     size: 9.5,
@@ -183,22 +208,22 @@ export async function generateReceiptPdf({
 
   let y = height - 165;
   const items: Array<[string, string]> = [
-    ['Receipt Number:', receiptNo],
-    ['Date & Time:', paidAt],
-    ['Donor / Alumni Name:', donorName],
-    ['Donor PAN Number:', donorPan || 'N/A (Not Provided)'],
-    ['Institution / School:', schoolName || institutionName],
-    ['Donation Cause / Fund:', `${campaignTitle} (${donationType})`],
-    ['Amount Paid:', `Rs. ${Number(amount).toLocaleString('en-IN')}`],
-    ['Amount in Words:', numberToWordsINR(amount)],
-    ['Payment Mode:', formattedMode],
-    ['Transaction / Payment ID:', paymentId],
+    ['Receipt Number:', safeReceiptNo],
+    ['Date & Time:', safePaidAt],
+    ['Donor / Alumni Name:', safeDonorName],
+    ['Donor PAN Number:', safePan],
+    ['Institution / School:', safeSchoolName],
+    ['Donation Cause / Fund:', safeCampaign],
+    ['Amount Paid:', `Rs. ${safeAmountNum.toLocaleString('en-IN')}`],
+    ['Amount in Words:', cleanPdfText(numberToWordsINR(safeAmountNum))],
+    ['Payment Mode:', cleanPdfText(formattedMode)],
+    ['Transaction / Payment ID:', safePaymentId],
     ['Payment Status:', 'SUCCESSFUL (CONFIRMED)'],
   ];
 
   for (const [label, val] of items) {
     const isAmount = label === 'Amount Paid:';
-    page.drawText(label, {
+    page.drawText(cleanPdfText(label), {
       x: 65,
       y,
       size: 10,
@@ -206,7 +231,7 @@ export async function generateReceiptPdf({
       color: isAmount ? blue : gray,
     });
 
-    page.drawText(val, {
+    page.drawText(cleanPdfText(val), {
       x: 235,
       y,
       size: isAmount ? 13 : 9.5,
@@ -237,14 +262,16 @@ export async function generateReceiptPdf({
   });
 
   page.drawText(
-    `Thank you for your generous contribution towards empowering education.`,
+    cleanPdfText('Thank you for your generous contribution towards empowering education.'),
     { x: 60, y: 140, size: 8.5, font: fontRegular, color: dark }
   );
 
   page.drawText(
-    taxExemptionNo
-      ? `Eligible for tax benefit under Section 80G (Reg: ${taxExemptionNo}). Retain this receipt for your records.`
-      : `This official receipt confirms payment reception and is generated for your accounting and record keeping.`,
+    cleanPdfText(
+      safeTaxExemption
+        ? `Eligible for tax benefit under Section 80G (Reg: ${safeTaxExemption}). Retain this receipt for your records.`
+        : `This official receipt confirms payment reception and is generated for your accounting and record keeping.`
+    ),
     { x: 60, y: 126, size: 8.5, font: fontRegular, color: dark }
   );
 
@@ -257,7 +284,7 @@ export async function generateReceiptPdf({
     color: gray,
   });
 
-  page.drawText(`${institutionName} · Digital Education & Institutional Network`, {
+  page.drawText(cleanPdfText(`${institutionName} | Digital Education & Institutional Network`), {
     x: 50,
     y: 50,
     size: 8,
@@ -311,7 +338,6 @@ export async function generate80GCertificatePdf({
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   const forest = rgb(20 / 255, 83 / 255, 45 / 255); // #14532d (Dark Emerald Green)
-  const emerald = rgb(16 / 255, 185 / 255, 129 / 255); // #10b981
   const amber = rgb(217 / 255, 119 / 255, 6 / 255); // #d97706
   const dark = rgb(15 / 255, 23 / 255, 42 / 255);
   const gray = rgb(71 / 255, 85 / 255, 105 / 255);
@@ -328,10 +354,18 @@ export async function generate80GCertificatePdf({
       : paymentMode.toUpperCase()
     : 'Online Payment (Razorpay)';
 
-  const institutionName = trustName || schoolName || 'EduTrust & Welfare Society';
-  const reg80G = taxExemptionNo || 'AABTM1234F21EE01';
-  const safePan = donorPan ? String(donorPan).trim().toUpperCase() : 'N/A';
+  const institutionName = cleanPdfText(trustName || schoolName || 'EduTrust & Welfare Society');
+  const reg80G = cleanPdfText(taxExemptionNo || 'AABTM1234F21EE01');
+  const safePan = cleanPdfText(donorPan ? String(donorPan).trim().toUpperCase() : 'N/A');
   const safeAmount = Number(amount || 0);
+  const safeReceiptNo = cleanPdfText(receiptNo);
+  const safePaidAt = cleanPdfText(paidAt);
+  const safeDonorName = cleanPdfText(donorName || 'Valued Contributor');
+  const safePhone = cleanPdfText(donorPhone || 'N/A');
+  const safeEmail = cleanPdfText(donorEmail || 'N/A');
+  const safeSchoolName = cleanPdfText(schoolName || institutionName);
+  const safeCampaign = cleanPdfText(`${campaignTitle || 'General Support'} (${donationType || 'Donation'})`);
+  const safePaymentId = cleanPdfText(paymentId || 'N/A');
 
   // Triple Border for Official Certificate Look
   page.drawRectangle({
@@ -372,7 +406,7 @@ export async function generate80GCertificatePdf({
     borderWidth: 1,
   });
 
-  page.drawText('GOVERNMENT OF INDIA · INCOME TAX DEPARTMENT', {
+  page.drawText('GOVERNMENT OF INDIA | INCOME TAX DEPARTMENT', {
     x: 50,
     y: height - 58,
     size: 8.5,
@@ -396,7 +430,7 @@ export async function generate80GCertificatePdf({
     color: dark,
   });
 
-  page.drawText(`80G URN / Approval No: ${reg80G} · Recognized Charitable & Educational Trust`, {
+  page.drawText(cleanPdfText(`80G URN / Approval No: ${reg80G} | Recognized Charitable & Educational Trust`), {
     x: 50,
     y: height - 114,
     size: 8.5,
@@ -404,7 +438,7 @@ export async function generate80GCertificatePdf({
     color: gray,
   });
 
-  page.drawText(`Issued under Section 80G(5)(vi) of the Income Tax Act, 1961`, {
+  page.drawText('Issued under Section 80G(5)(vi) of the Income Tax Act, 1961', {
     x: 50,
     y: height - 128,
     size: 8.5,
@@ -433,23 +467,23 @@ export async function generate80GCertificatePdf({
 
   let y = height - 180;
   const items: Array<[string, string]> = [
-    ['80G Certificate No:', receiptNo],
-    ['Date of Issuance:', paidAt],
-    ['Donor Full Name:', donorName || 'Valued Contributor'],
+    ['80G Certificate No:', safeReceiptNo],
+    ['Date of Issuance:', safePaidAt],
+    ['Donor Full Name:', safeDonorName],
     ['Donor PAN (Tax ID):', safePan],
-    ['Donor Contact / Email:', `${donorPhone || 'N/A'} · ${donorEmail || 'N/A'}`],
-    ['Beneficiary Entity:', schoolName || institutionName],
-    ['Purpose of Contribution:', `${campaignTitle || 'General Support'} (${donationType || 'Donation'})`],
-    ['Donation Amount (INR):', `₹ ${safeAmount.toLocaleString('en-IN')}`],
-    ['Amount in Words:', numberToWordsINR(safeAmount)],
-    ['Mode of Transfer:', formattedMode],
-    ['Transaction Ref / Payment ID:', paymentId || 'N/A'],
+    ['Donor Contact / Email:', `${safePhone} | ${safeEmail}`],
+    ['Beneficiary Entity:', safeSchoolName],
+    ['Purpose of Contribution:', safeCampaign],
+    ['Donation Amount (INR):', `Rs. ${safeAmount.toLocaleString('en-IN')}`],
+    ['Amount in Words:', cleanPdfText(numberToWordsINR(safeAmount))],
+    ['Mode of Transfer:', cleanPdfText(formattedMode)],
+    ['Transaction Ref / Payment ID:', safePaymentId],
   ];
 
   for (const [label, val] of items) {
     const isAmount = label === 'Donation Amount (INR):';
     const isPan = label === 'Donor PAN (Tax ID):';
-    page.drawText(label, {
+    page.drawText(cleanPdfText(label), {
       x: 60,
       y,
       size: 9.5,
@@ -457,7 +491,7 @@ export async function generate80GCertificatePdf({
       color: isAmount ? forest : isPan ? amber : gray,
     });
 
-    page.drawText(val, {
+    page.drawText(cleanPdfText(val), {
       x: 230,
       y,
       size: isAmount ? 12 : 9.5,
@@ -488,19 +522,19 @@ export async function generate80GCertificatePdf({
   });
 
   page.drawText(
-    `Certified that the above-mentioned voluntary donation of ₹${safeAmount.toLocaleString('en-IN')} has been received from`,
+    cleanPdfText(`Certified that the above-mentioned voluntary donation of Rs. ${safeAmount.toLocaleString('en-IN')} has been received from`),
     { x: 60, y: 198, size: 8.5, font: fontRegular, color: dark }
   );
   page.drawText(
-    `${donorName || 'the Donor'} (PAN: ${safePan}) exclusively for educational, student aid, and charitable activities.`,
+    cleanPdfText(`${safeDonorName} (PAN: ${safePan}) exclusively for educational, student aid, and charitable activities.`),
     { x: 60, y: 184, size: 8.5, font: fontRegular, color: dark }
   );
   page.drawText(
-    `This contribution qualifies for deduction in the hands of the donor under Section 80G of the Income Tax Act, 1961.`,
+    cleanPdfText('This contribution qualifies for deduction in the hands of the donor under Section 80G of the Income Tax Act, 1961.'),
     { x: 60, y: 170, size: 8.5, font: fontRegular, color: dark }
   );
   page.drawText(
-    `Order of Approval / Registration No: ${reg80G} issued by the Commissioner of Income Tax (Exemptions).`,
+    cleanPdfText(`Order of Approval / Registration No: ${reg80G} issued by the Commissioner of Income Tax (Exemptions).`),
     { x: 60, y: 154, size: 8, font: fontBold, color: gray }
   );
 
@@ -512,7 +546,7 @@ export async function generate80GCertificatePdf({
     font: fontBold,
     color: gray,
   });
-  page.drawText('System Verified · Rule 18AB Compliant', {
+  page.drawText('System Verified | Rule 18AB Compliant', {
     x: 60,
     y: 82,
     size: 8,
@@ -520,7 +554,7 @@ export async function generate80GCertificatePdf({
     color: gray,
   });
 
-  page.drawText('For ' + institutionName.toUpperCase(), {
+  page.drawText(cleanPdfText('For ' + institutionName.toUpperCase()), {
     x: width - 230,
     y: 110,
     size: 8.5,

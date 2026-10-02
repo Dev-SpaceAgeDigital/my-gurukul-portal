@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const id = searchParams.get('id');
     const token = searchParams.get('token');
     const receiptNo = searchParams.get('receiptNo');
-    const reqType = (searchParams.get('type') || '').toUpperCase(); // '80G' or standard
+    const reqType = (searchParams.get('type') || '').toUpperCase(); // '80G' or standard receipt
 
     let row: any = null;
 
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
            LEFT JOIN "Trust" t ON s."trustId" = t.id 
            WHERE ac.id = $1`,
           [id]
-        );
+        ).catch(() => ({ rows: [] }));
         if (contribRes.rows.length > 0) row = contribRes.rows[0];
       }
 
@@ -61,9 +61,9 @@ export async function GET(request: Request) {
           LEFT JOIN "Trust" tr ON s."trustId" = tr.id
           LEFT JOIN "Expense" e ON t."referenceId" = e.id AND t.type IN ('CONSTRUCTION', 'EVENT')
           LEFT JOIN "Standard" std ON t."referenceId" = std.id AND t.type IN ('ZAKAT', 'LILLAH', 'SADKA', 'GENERAL')
-          WHERE (t.id::text = $1 OR t."razorpayPaymentId" = $1) AND t.status = 'SUCCESS'`,
+          WHERE (t.id::text = $1 OR t."razorpayPaymentId" = $1)`,
           [id]
-        );
+        ).catch(() => ({ rows: [] }));
         if (txRes.rows.length > 0) row = txRes.rows[0];
       }
     }
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
          LEFT JOIN "Trust" t ON s."trustId" = t.id 
          WHERE di.token = $1`,
         [token]
-      );
+      ).catch(() => ({ rows: [] }));
       if (inquiryRes.rows.length > 0) row = inquiryRes.rows[0];
     }
 
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
            LEFT JOIN "Trust" t ON s."trustId" = t.id 
            WHERE di."razorpayPaymentId" = $1 OR di.token = $1`,
           [receiptNo]
-        );
+        ).catch(() => ({ rows: [] }));
         if (inquiryRes.rows.length > 0) row = inquiryRes.rows[0];
       }
 
@@ -107,9 +107,9 @@ export async function GET(request: Request) {
            FROM "Transaction" t 
            LEFT JOIN "School" s ON t."schoolId" = s.id 
            LEFT JOIN "Trust" tr ON s."trustId" = tr.id 
-           WHERE t."razorpayPaymentId" = $1 AND t.status = 'SUCCESS'`,
+           WHERE t."razorpayPaymentId" = $1`,
           [receiptNo]
-        );
+        ).catch(() => ({ rows: [] }));
         if (txRes.rows.length > 0) row = txRes.rows[0];
       }
     }
@@ -127,7 +127,7 @@ export async function GET(request: Request) {
       } catch {}
     }
 
-    // Default sample values if row is mock/fallback
+    // Prepare fields
     const numReceiptNo = row?.receiptNo || row?.razorpayPaymentId || (row?.id ? `REC-${String(row.id).substring(0, 8).toUpperCase()}` : (receiptNo || `REC-${Date.now().toString().slice(-6)}`));
     const donorName = row?.donorName || row?.name || 'Valued Donor / Alumni';
     const donorPan = row?.donorPan || row?.alumniPan || row?.panNo || null;
@@ -141,17 +141,17 @@ export async function GET(request: Request) {
     const paymentId = row?.paymentId || row?.razorpayPaymentId || `TXN-${Date.now().toString().slice(-8)}`;
     const paymentMode = row?.paymentMode || 'Online Payment';
 
-    const is80GDownload = reqType === '80G' || row?.is80GRecord || (row?.status === 'APPROVED_SENT' && donorPan);
+    const is80GDownload = reqType === '80G';
 
     let pdfBuffer: Buffer;
     let filename: string;
 
-    if (is80GDownload && donorPan) {
+    if (is80GDownload) {
       pdfBuffer = await generate80GCertificatePdf({
         receiptNo: numReceiptNo.startsWith('80G-') ? numReceiptNo : `80G-${numReceiptNo}`,
         paidAt,
         donorName,
-        donorPan,
+        donorPan: donorPan || 'N/A',
         donorPhone,
         donorEmail,
         schoolName,
@@ -187,11 +187,11 @@ export async function GET(request: Request) {
       headers: {
         ...publicDonationHeaders,
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `inline; filename="${filename}"`,
       },
     });
   } catch (error: any) {
     console.error('Error generating receipt PDF:', error);
-    return NextResponse.json({ error: 'Failed to generate receipt PDF' }, { status: 500, headers: publicDonationHeaders });
+    return NextResponse.json({ error: error?.message || 'Failed to generate receipt PDF' }, { status: 500, headers: publicDonationHeaders });
   }
 }
