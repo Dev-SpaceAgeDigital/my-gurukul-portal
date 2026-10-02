@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const result = await pool.query(
-      `SELECT a.id, a.name, a.email, a."batchYear", a."linkedIn", a."profilePic", a."currentTitle", a."currentBio", a."workLink", a.industry, a.phone, a."countryCode", a.country, a.state, a.city, a."twoFactorEnabled", s."schoolName", s."logoUrl" as "schoolLogo", t."logoUrl" as "trustLogo"
+      `SELECT a.id, a.name, a.email, a."batchYear", a."linkedIn", a."profilePic", a."currentTitle", a."currentBio", a."workLink", a.industry, a.phone, a."countryCode", a.country, a.state, a.city, a."panNo", a."twoFactorEnabled", s."schoolName", s."logoUrl" as "schoolLogo", t."logoUrl" as "trustLogo"
        FROM "Alumni" a
        LEFT JOIN "School" s ON a."schoolId" = s.id
        LEFT JOIN "Trust" t ON s."trustId" = t.id
@@ -56,6 +56,7 @@ export async function PATCH(request: Request) {
     const country = formData.get('country') as string;
     const state = formData.get('state') as string;
     const city = formData.get('city') as string;
+    const panNo = formData.get('panNo') as string;
     const profilePicFile = formData.get('profilePic') as File | null;
 
     let profilePicUrl = formData.get('existingProfilePic') as string || null;
@@ -68,6 +69,8 @@ export async function PATCH(request: Request) {
       const uploadRes: any = await uploadMedia(buffer, fileName, 'alumni-profiles', true);
       profilePicUrl = uploadRes.secure_url;
     }
+
+    const cleanPan = panNo ? panNo.trim().toUpperCase() : null;
 
     const updateQuery = `
       UPDATE "Alumni"
@@ -84,13 +87,14 @@ export async function PATCH(request: Request) {
         city = $10,
         phone = COALESCE($11, phone),
         "countryCode" = COALESCE($12, "countryCode"),
+        "panNo" = COALESCE($13, "panNo"),
         "updatedAt" = NOW()
-      WHERE id = $13
+      WHERE id = $14
       RETURNING *
     `;
 
     const result = await pool.query(updateQuery, [
-      name, currentTitle, currentBio, workLink, linkedIn, profilePicUrl, industry, country, state, city, phone || null, countryCode || null, session.userId
+      name, currentTitle, currentBio, workLink, linkedIn, profilePicUrl, industry, country, state, city, phone || null, countryCode || null, cleanPan, session.userId
     ]);
 
     return NextResponse.json(result.rows[0]);

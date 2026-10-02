@@ -138,11 +138,20 @@ export default function AlumniContributions() {
    const [paymentAmount, setPaymentAmount] = useState('');
    const [isPaying, setIsPaying] = useState(false);
    const [userData, setUserData] = useState<any>(null);
+   const [tenantInfo, setTenantInfo] = useState<any>(null);
+   const [is80GRequested, setIs80GRequested] = useState(false);
+   const [panInput, setPanInput] = useState('');
    const { dialog, showAlert } = usePortalDialog();
 
    useEffect(() => {
       fetchNeeds();
       fetch('/api/auth/me').then(res => res.json()).then(d => setUserData(d));
+      fetch('/api/alumni/profile').then(res => res.json()).then(d => {
+         if (d?.panNo) setPanInput(d.panNo);
+      }).catch(() => {});
+      fetch('/api/public/tenant-info').then(res => res.json()).then(d => {
+         if (d?.success) setTenantInfo(d);
+      }).catch(() => {});
    }, []);
 
    const schools = useMemo(() => {
@@ -185,9 +194,21 @@ export default function AlumniContributions() {
       }
    };
 
+   const min80GThreshold = tenantInfo?.min80GAmount ? Number(tenantInfo.min80GAmount) : 500;
+   const is80GEligible = Boolean(tenantInfo?.is80GEnabled !== false) && parseFloat(paymentAmount || '0') >= min80GThreshold;
+
    const handlePayment = async () => {
       if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
          showAlert({ title: 'Enter a valid amount', message: 'Please enter an amount greater than zero before continuing.', variant: 'danger' });
+         return;
+      }
+
+      if (is80GRequested && (!panInput || panInput.trim().length < 10)) {
+         showAlert({
+            title: 'PAN Card Number required',
+            message: 'Please enter a valid 10-character PAN Card Number to request an official Section 80G Tax Exemption Certificate.',
+            variant: 'danger',
+         });
          return;
       }
 
@@ -209,7 +230,7 @@ export default function AlumniContributions() {
             key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RXNuiBfUb7KG4A',
             amount: order.amount,
             currency: order.currency,
-            name: "Madni Education Trust",
+            name: tenantInfo?.name || "EduTrust Network",
             description: `Support - ${selectedItem.title}`,
             order_id: order.id,
             handler: async function (response: any) {
@@ -224,14 +245,20 @@ export default function AlumniContributions() {
                      schoolId: selectedItem.schoolId,
                      donorName: userData?.name,
                      donorEmail: userData?.email,
-                     donorPhone: userData?.phoneNo
+                     donorPhone: userData?.phoneNo,
+                     donorPan: is80GRequested ? panInput.trim().toUpperCase() : null,
+                     request80G: is80GRequested,
+                     campaignTitle: selectedItem.title,
+                     causeName: selectedItem.title
                   })
                });
 
                if (verifyRes.ok) {
                   showAlert({
-                     title: 'Transfer successful',
-                     message: 'Your institutional support has been recorded.',
+                     title: 'Donation successful! 🎉',
+                     message: is80GRequested
+                        ? `Your institutional contribution of ₹${parseFloat(paymentAmount).toLocaleString()} has been recorded! Your Section 80G Tax Exemption request is logged and receipt will be issued.`
+                        : 'Your institutional support has been recorded successfully.',
                      variant: 'success',
                   });
                   setIsPaymentModalOpen(false);
@@ -245,7 +272,7 @@ export default function AlumniContributions() {
                email: userData?.email,
                contact: userData?.phoneNo
             },
-            theme: { color: "#2563eb" } // Updated to blue-600
+            theme: { color: "#2563eb" }
          };
 
          const rzp = new window.Razorpay(options);
@@ -697,12 +724,70 @@ export default function AlumniContributions() {
                            <input
                               type="number"
                               value={paymentAmount}
-                              onChange={(e) => setPaymentAmount(e.target.value)}
+                              onChange={(e) => {
+                                 setPaymentAmount(e.target.value);
+                                 if (parseFloat(e.target.value || '0') < min80GThreshold) {
+                                    setIs80GRequested(false);
+                                 }
+                              }}
                               className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl font-bold text-slate-800 text-xs focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-inner sm:rounded-2xl sm:py-3 sm:pl-10 sm:text-sm"
                               placeholder="Enter amount to donate"
                            />
                         </div>
                      </div>
+
+                     {/* 80G Tax Exemption Option */}
+                     {is80GEligible ? (
+                        <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500/[0.05] to-emerald-500/[0.05] border border-amber-500/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                           <div className="flex items-start justify-between gap-2">
+                              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                                 <input
+                                    type="checkbox"
+                                    checked={is80GRequested}
+                                    onChange={(e) => setIs80GRequested(e.target.checked)}
+                                    className="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+                                 />
+                                 <div>
+                                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                                       Request Section 80G Tax Exemption Certificate
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                                       Eligible donation (₹{min80GThreshold}+). Official certificate will be issued.
+                                    </span>
+                                 </div>
+                              </label>
+                              <span className="shrink-0 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20">
+                                 80G Active
+                              </span>
+                           </div>
+
+                           {is80GRequested && (
+                              <div className="pt-2 border-t border-amber-500/10 space-y-1 animate-in fade-in duration-150">
+                                 <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider ml-0.5 block">
+                                    Permanent Account Number (PAN Card No) <span className="text-rose-500">*</span>
+                                 </label>
+                                 <input
+                                    type="text"
+                                    maxLength={10}
+                                    value={panInput}
+                                    onChange={(e) => setPanInput(e.target.value.toUpperCase())}
+                                    placeholder="e.g. ABCDE1234F"
+                                    className="w-full px-3 py-2 bg-white border border-amber-500/30 rounded-xl font-mono text-xs font-bold uppercase text-slate-900 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all shadow-xs"
+                                 />
+                                 <p className="text-[9.5px] text-slate-400">
+                                    Your PAN will be saved to your profile and included on your 80G tax certificate.
+                                 </p>
+                              </div>
+                           )}
+                        </div>
+                     ) : (
+                        tenantInfo?.is80GEnabled !== false && (
+                           <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-[10.5px] text-slate-500 flex items-center gap-2">
+                              <span className="font-bold text-amber-600 shrink-0">80G Info:</span>
+                              <span>Donate ₹{min80GThreshold} or above to be eligible for Section 80G tax exemption certificate.</span>
+                           </div>
+                        )
+                     )}
 
                      <div className="flex flex-col gap-2">
                         <button

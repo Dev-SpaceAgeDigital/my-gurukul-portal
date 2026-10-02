@@ -125,6 +125,7 @@ export const alumni = pgTable('Alumni', {
   twoFactorEnabled: boolean('twoFactorEnabled').default(false),
   backupCodes: jsonb('backupCodes'),
   fcmToken: text('fcmToken'),
+  panNo: varchar('panNo', { length: 20 }),
   schoolId: uuid('schoolId').references(() => schools.id, { onDelete: 'set null' }),
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),

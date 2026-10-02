@@ -205,8 +205,18 @@ export default function AlumniDonationHistory() {
                       <p className="text-xs font-extrabold text-slate-800 truncate">{tx.referenceName || 'General Donation'}</p>
                       <p className="text-[11px] font-medium text-slate-500 truncate flex items-center gap-1 mt-0.5">
                         <Building2 size={11} className="text-slate-400" />
-                        {tx.schoolName || 'Madni Education Trust'}
+                        {tx.schoolName || 'EduTrust Network'}
                       </p>
+                      {/* 80G Status Badge */}
+                      {tx.status80G === 'APPROVED_SENT' ? (
+                        <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                          <span>📜 80G Issued: {tx.receiptNo80G || 'Verified'}</span>
+                        </div>
+                      ) : (tx.status80G === 'PENDING' || tx.donorPan) ? (
+                        <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                          <span>⏳ 80G Pending (PAN: {tx.donorPan})</span>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-black text-slate-900">₹{Number(tx.amount).toLocaleString()}</p>
@@ -217,21 +227,35 @@ export default function AlumniDonationHistory() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 text-[10.5px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[10.5px]">
                     <span className="inline-flex items-center gap-1 text-slate-500 font-semibold bg-slate-100/80 px-2 py-0.5 rounded-md">
                       <CreditCard size={11} className="text-slate-400" />
                       {tx.paymentMode || 'Online'}
                     </span>
 
-                    <a
-                      href={`/api/public/download-receipt?id=${tx.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-600 hover:text-white"
-                    >
-                      <Download size={12} />
-                      <span>Receipt PDF</span>
-                    </a>
+                    <div className="flex items-center gap-1.5">
+                      {tx.status80G === 'APPROVED_SENT' && (
+                        <a
+                          href={`/api/public/download-receipt?id=${tx.razorpayPaymentId || tx.id}&type=80G`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 transition-colors hover:bg-emerald-600 hover:text-white"
+                        >
+                          <Download size={12} />
+                          <span>80G Certificate</span>
+                        </a>
+                      )}
+
+                      <a
+                        href={`/api/public/download-receipt?id=${tx.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-600 hover:text-white"
+                      >
+                        <Download size={12} />
+                        <span>Receipt PDF</span>
+                      </a>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -253,8 +277,8 @@ export default function AlumniDonationHistory() {
                     <th className="p-3.5">Amount</th>
                     <th className="p-3.5">Payment Mode</th>
                     <th className="p-3.5">School & Details</th>
-                    <th className="p-3.5">Status</th>
-                    <th className="p-3.5 pr-6">Receipt</th>
+                    <th className="p-3.5">Status & 80G</th>
+                    <th className="p-3.5 pr-6 text-right">Downloads</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/50 text-xs">
@@ -283,25 +307,51 @@ export default function AlumniDonationHistory() {
                       <td className="p-3.5">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800">{tx.referenceName || 'General Donation'}</span>
-                          <span className="text-[11px] text-slate-500 font-medium">{tx.schoolName || 'Madni Education Trust'}</span>
+                          <span className="text-[11px] text-slate-500 font-medium">{tx.schoolName || 'EduTrust Network'}</span>
                         </div>
                       </td>
                       <td className="p-3.5">
-                        <div className="flex items-center font-bold text-emerald-600">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
-                          {tx.status || 'Success'}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center font-bold text-emerald-600">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
+                            {tx.status || 'Success'}
+                          </div>
+                          {tx.status80G === 'APPROVED_SENT' ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 w-fit">
+                              80G Issued
+                            </span>
+                          ) : (tx.status80G === 'PENDING' || tx.donorPan) ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 w-fit">
+                              80G Pending
+                            </span>
+                          ) : null}
                         </div>
                       </td>
-                      <td className="p-3.5 pr-6">
-                        <a
-                          href={`/api/public/download-receipt?id=${tx.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-600 hover:text-white shadow-xs"
-                        >
-                          <Download size={13} />
-                          <span>PDF</span>
-                        </a>
+                      <td className="p-3.5 pr-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {tx.status80G === 'APPROVED_SENT' && (
+                            <a
+                              href={`/api/public/download-receipt?id=${tx.razorpayPaymentId || tx.id}&type=80G`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-600 hover:text-white shadow-xs"
+                              title="Download Official Section 80G Tax Exemption Certificate"
+                            >
+                              <Download size={12} />
+                              <span>80G Certificate</span>
+                            </a>
+                          )}
+                          <a
+                            href={`/api/public/download-receipt?id=${tx.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-600 hover:text-white shadow-xs"
+                            title="Download Official Donation Receipt"
+                          >
+                            <Download size={13} />
+                            <span>Receipt PDF</span>
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))}

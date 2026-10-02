@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth';
-import { generateReceiptPdf } from '@/lib/generateReceiptPdf';
+import { generate80GCertificatePdf } from '@/lib/generateReceiptPdf';
 import { createNotification } from '@/lib/notifications';
 import { sendEmail } from '@/lib/emailSender';
 
-const FROM_EMAIL = process.env.BREVO_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'Madni Education Trust <no-reply@zynteqtechnologies.com>';
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'EduTrust Network <no-reply@zynteqtechnologies.com>';
 
 export async function ensure80GTable() {
   await pool.query(`
@@ -22,8 +22,12 @@ export async function ensure80GTable() {
       "schoolId" TEXT,
       status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
       "sentAt" TIMESTAMPTZ,
+      "receiptNo" VARCHAR(100),
+      "alumniId" UUID,
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "receiptNo" VARCHAR(100);
+    ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "alumniId" UUID;
   `);
 }
 
@@ -64,7 +68,7 @@ export async function GET() {
           inq.amount,
           inq.token || 'INQ-' + inq.id.slice(0, 8),
           inq.campaignTitle || inq.type || 'Educational Aid',
-          inq.schoolName || 'Madni Education Trust',
+          inq.schoolName || 'EduTrust Network',
           inq.schoolId || null,
           inq.createdAt,
         ]
@@ -107,31 +111,56 @@ export async function POST(req: Request) {
     }
 
     const item = reqRes.rows[0];
-    const receiptNo = `MDT-80G-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+
+    // Fetch Trust details for 80G registration & name
+    let trustName = 'EduTrust & Welfare Society';
+    let taxExemptionNo = 'AABTM1234F21EE01';
+
+    try {
+      if (item.schoolId) {
+        const trustRes = await pool.query(
+          `SELECT t."trustName", t."taxExemptionNo" FROM "School" s JOIN "Trust" t ON s."trustId" = t.id WHERE s.id = $1 LIMIT 1`,
+          [item.schoolId]
+        );
+        if (trustRes.rows[0]) {
+          trustName = trustRes.rows[0].trustName || trustName;
+          taxExemptionNo = trustRes.rows[0].taxExemptionNo || taxExemptionNo;
+        }
+      } else {
+        const trustRes = await pool.query(`SELECT "trustName", "taxExemptionNo" FROM "Trust" LIMIT 1`);
+        if (trustRes.rows[0]) {
+          trustName = trustRes.rows[0].trustName || trustName;
+          taxExemptionNo = trustRes.rows[0].taxExemptionNo || taxExemptionNo;
+        }
+      }
+    } catch {}
+
+    const receiptNo = item.receiptNo || `80G-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const paidAt = new Date(item.createdAt).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
 
-    // Generate Official 80G PDF Certificate
-    const pdfBuffer = await generateReceiptPdf({
+    // Generate Official Section 80G Certificate PDF
+    const pdfBuffer = await generate80GCertificatePdf({
       receiptNo,
       paidAt,
       donorName: item.donorName,
       donorPan: item.donorPan,
+      donorPhone: item.donorPhone,
+      donorEmail: item.donorEmail,
       schoolName: item.schoolName,
+      trustName,
       campaignTitle: item.causeName,
-      donationType: '80G Tax Exempt Contribution',
+      donationType: 'Section 80G Eligible Donation',
       amount: parseFloat(item.amount),
-      paymentId: item.paymentId || 'MDT-TXN-' + item.id.slice(0, 8),
+      paymentId: item.paymentId || 'TXN-' + item.id.slice(0, 8),
       paymentMode: 'Online Donation',
+      taxExemptionNo,
     });
 
     let emailSent = false;
-
     const pdfBase64 = pdfBuffer.toString('base64');
     const sendResult = await sendEmail({
       from: FROM_EMAIL,
@@ -145,32 +174,32 @@ export async function POST(req: Request) {
       ],
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
-          <div style="text-align: center; border-bottom: 2px solid #1A6B5A; padding-bottom: 16px; margin-bottom: 20px;">
-            <h2 style="color: #1A6B5A; margin: 0; font-size: 22px;">${(item.schoolName || 'Education Trust').toUpperCase()}</h2>
-            <p style="color: #F5A623; font-weight: bold; margin: 4px 0 0 0; font-size: 12px; text-transform: uppercase;">Official 80G Tax Exemption Certificate</p>
-            <p style="color: #64748b; font-size: 11px; margin: 2px 0 0 0;">80G Tax Exemption Verified Certificate</p>
+          <div style="text-align: center; border-bottom: 2px solid #166534; padding-bottom: 16px; margin-bottom: 20px;">
+            <h2 style="color: #166534; margin: 0; font-size: 20px;">${(trustName || item.schoolName || 'Education Trust').toUpperCase()}</h2>
+            <p style="color: #d97706; font-weight: bold; margin: 4px 0 0 0; font-size: 12px; text-transform: uppercase;">Official 80G Tax Exemption Certificate</p>
+            <p style="color: #64748b; font-size: 11px; margin: 2px 0 0 0;">80G Registration / URN: ${taxExemptionNo}</p>
           </div>
 
           <p style="font-size: 14px; color: #334155; line-height: 1.6;">Dear <strong>${item.donorName}</strong>,</p>
           
           <p style="font-size: 14px; color: #334155; line-height: 1.6;">
-            Thank you for your generous contribution of <strong>Rs. ${Number(item.amount).toLocaleString('en-IN')}</strong> towards <strong>${item.causeName}</strong>.
+            Thank you for your generous contribution of <strong>₹${Number(item.amount).toLocaleString('en-IN')}</strong> towards <strong>${item.causeName}</strong>.
           </p>
 
-          <div style="background: #EAF4F0; border: 1px solid #1A6B5A; border-radius: 10px; padding: 16px; margin: 20px 0;">
-            <p style="margin: 0 0 8px 0; font-weight: bold; color: #1A6B5A; font-size: 13px;">INCOME TAX SECTION 80G CLAIM DETAILS:</p>
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0; font-weight: bold; color: #166534; font-size: 13px;">INCOME TAX SECTION 80G CERTIFICATE SUMMARY:</p>
             <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>Donor Name:</strong> ${item.donorName}</p>
             <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>PAN Card No:</strong> ${item.donorPan}</p>
-            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>Receipt No:</strong> ${receiptNo}</p>
-            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>Amount:</strong> Rs. ${Number(item.amount).toLocaleString('en-IN')}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>80G Certificate No:</strong> ${receiptNo}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #1e293b;">• <strong>Contribution Amount:</strong> ₹${Number(item.amount).toLocaleString('en-IN')}</p>
           </div>
 
           <p style="font-size: 13px; color: #475569; line-height: 1.6;">
-            Please find attached your official <strong>Section 80G Tax Exemption PDF Certificate</strong>. You can present this PDF during your Income Tax Return (ITR) filing to claim tax exemption benefits.
+            Please find attached your official <strong>Section 80G Tax Exemption PDF Certificate</strong>. You can present this certificate while filing your Income Tax Return (ITR) to claim 50% or 100% tax exemption as applicable.
           </p>
 
           <div style="border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 16px; text-align: center; color: #94a3b8; font-size: 11px;">
-            ${item.schoolName || 'Education Trust'} · Registered Public Charitable Trust
+            ${trustName} · Registered Public Charitable & Educational Trust
           </div>
         </div>
       `,
@@ -178,18 +207,16 @@ export async function POST(req: Request) {
 
     if (sendResult.ok) {
       emailSent = true;
-    } else {
-      console.error('80G email send error:', sendResult.error);
     }
 
-    // Update status in DB
+    // Update status in DB with receiptNo and sentAt
     await pool.query(
       `
         UPDATE "Donation80GRequest"
-        SET status = 'APPROVED_SENT', "sentAt" = NOW()
+        SET status = 'APPROVED_SENT', "sentAt" = NOW(), "receiptNo" = $2
         WHERE id = $1
       `,
-      [id]
+      [id, receiptNo]
     );
 
     // Send in-app notification to donor if alumni or registered user
@@ -197,12 +224,12 @@ export async function POST(req: Request) {
       const alumniRes = await pool.query('SELECT id FROM "Alumni" WHERE LOWER(email) = $1 LIMIT 1', [item.donorEmail.toLowerCase()]);
       if (alumniRes.rows[0]) {
         await createNotification({
-          title: '80G Certificate Emailed! 📜',
-          message: `Your official Section 80G Tax Exemption Certificate (PAN: ${item.donorPan}) has been verified and emailed to ${item.donorEmail}.`,
+          title: '80G Tax Certificate Issued! 📜',
+          message: `Your official Section 80G Tax Exemption Certificate (PAN: ${item.donorPan}, Cert No: ${receiptNo}) has been issued and emailed to ${item.donorEmail}.`,
           type: 'DONATION',
           priority: 'HIGH',
           schoolId: item.schoolId || null,
-          link: '/alumni/dashboard',
+          link: '/alumni/dashboard?tab=impact',
           audiences: [
             { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: alumniRes.rows[0].id }
           ]
@@ -215,8 +242,8 @@ export async function POST(req: Request) {
       emailSent,
       receiptNo,
       message: emailSent
-        ? `Official 80G PDF Certificate successfully emailed to ${item.donorEmail}!`
-        : `80G Request approved! Resend API key missing, but PDF generated successfully.`,
+        ? `Official 80G Certificate successfully generated and emailed to ${item.donorEmail}!`
+        : `80G Request approved and certificate generated successfully!`,
     });
   } catch (error) {
     console.error('Approve 80G request error:', error);

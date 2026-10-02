@@ -128,6 +128,7 @@ export default function AlumniProfile() {
     workLink: '',
     linkedIn: '',
     profilePic: '',
+    panNo: '',
     is2FAEnabled: false
   });
 
@@ -173,6 +174,7 @@ export default function AlumniProfile() {
           workLink: data.workLink || '',
           linkedIn: data.linkedIn || '',
           profilePic: data.profilePic || '',
+          panNo: data.panNo || '',
           is2FAEnabled: !!data.twoFactorEnabled
         });
         if (data.profilePic) setPreviewImage(data.profilePic);
@@ -239,6 +241,7 @@ export default function AlumniProfile() {
     formData.append('currentBio', profile.currentBio || '');
     formData.append('workLink', profile.workLink || '');
     formData.append('linkedIn', profile.linkedIn || '');
+    formData.append('panNo', profile.panNo || '');
     formData.append('existingProfilePic', profile.profilePic || '');
     if (file) {
       formData.append('profilePic', file);
@@ -263,11 +266,12 @@ export default function AlumniProfile() {
           currentBio: updated.currentBio || '',
           workLink: updated.workLink || '',
           linkedIn: updated.linkedIn || '',
-          profilePic: updated.profilePic || ''
+          profilePic: updated.profilePic || '',
+          panNo: updated.panNo || prev.panNo || ''
         }));
         showAlert({
           title: 'Profile synchronized',
-          message: 'Professional identity & location details synchronized successfully.',
+          message: 'Professional identity, PAN details & location details synchronized successfully.',
           variant: 'success',
         });
       } else {
@@ -748,6 +752,45 @@ export default function AlumniProfile() {
                   onChange={(e) => setProfile({ ...profile, workLink: e.target.value })}
                   className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 animate-transition"
                 />
+              </div>
+            </div>
+
+            {/* Tax & 80G Exemption Settings (PAN Card Number) */}
+            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-amber-500/[0.04] border border-amber-500/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-700 font-black text-xs">
+                    80G
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">Tax Exemption & PAN Details</h4>
+                    <p className="text-[10.5px] text-slate-500 font-medium">Used for issuing official Section 80G Income Tax Exemption Certificates for your contributions</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider ml-1 block mb-1">
+                  Permanent Account Number (PAN Card No)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={10}
+                    placeholder="e.g. ABCDE1234F"
+                    value={profile.panNo || ''}
+                    onChange={(e) => setProfile({ ...profile, panNo: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3 bg-white border border-slate-200/90 hover:border-amber-400 focus:border-amber-500 rounded-xl outline-none font-mono text-xs font-bold uppercase text-slate-800 tracking-wider shadow-xs focus:ring-4 focus:ring-amber-500/10 transition-all"
+                  />
+                  {profile.panNo && profile.panNo.length === 10 && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      <CheckCircle2 size={11} /> Saved
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 ml-1">
+                  Entering your PAN enables automatic 80G tax receipt generation when you donate eligible amounts.
+                </p>
               </div>
             </div>
 

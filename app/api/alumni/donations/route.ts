@@ -21,6 +21,10 @@ export async function GET() {
         t."paymentMode",
         t."referenceId",
         t."razorpayPaymentId",
+        t."donorPan",
+        req.status as "status80G",
+        req."receiptNo" as "receiptNo80G",
+        req."sentAt" as "sentAt80G",
         s."schoolName",
         CASE 
           WHEN t.type IN ('CONSTRUCTION', 'EVENT') THEN e.title
@@ -31,7 +35,8 @@ export async function GET() {
       LEFT JOIN "School" s ON t."schoolId" = s.id
       LEFT JOIN "Expense" e ON t."referenceId" = e.id AND t.type IN ('CONSTRUCTION', 'EVENT')
       LEFT JOIN "Standard" std ON t."referenceId" = std.id AND t.type IN ('ZAKAT', 'LILLAH', 'SADKA', 'GENERAL')
-      WHERE t."donorEmail" = $1 AND t.status = 'SUCCESS'
+      LEFT JOIN "Donation80GRequest" req ON (t."razorpayPaymentId" = req."paymentId" OR t.id::text = req.id)
+      WHERE LOWER(t."donorEmail") = LOWER($1) AND t.status = 'SUCCESS'
       ORDER BY t."createdAt" DESC
     `, [session.email]);
 

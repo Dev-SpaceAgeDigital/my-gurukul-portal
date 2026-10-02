@@ -19,8 +19,14 @@ export async function POST(request: Request) {
       schoolId,
       donorName,
       donorEmail,
-      donorPhone
+      donorPhone,
+      donorPan,
+      request80G,
+      campaignTitle,
+      causeName
     } = await request.json();
+
+    const cleanPan = donorPan ? String(donorPan).trim().toUpperCase() : null;
 
     // 1. Verify Signature
     const secret = process.env.RAZORPAY_KEY_SECRET!;
@@ -59,13 +65,74 @@ export async function POST(request: Request) {
       // Record Transaction
       await client.query(`
         INSERT INTO "Transaction" (
-          amount, type, "donorName", "donorEmail", "donorPhone", 
+          amount, type, "donorName", "donorEmail", "donorPhone", "donorPan",
           "razorpayPaymentId", "razorpayOrderId", status, "schoolId", "referenceId", "paymentMode"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [
-        amount, type, donorName || 'Anonymous', donorEmail, donorPhone,
+        amount, type, donorName || 'Anonymous', donorEmail, donorPhone, cleanPan,
         razorpay_payment_id, razorpay_order_id, 'SUCCESS', schoolId, referenceId, paymentMode
       ]);
+
+      // If PAN is provided and email matches alumni, save PAN in alumni profile
+      if (cleanPan && donorEmail) {
+        await client.query(
+          `UPDATE "Alumni" SET "panNo" = $1 WHERE LOWER(email) = $2 AND ("panNo" IS NULL OR "panNo" = '')`,
+          [cleanPan, donorEmail.toLowerCase()]
+        ).catch(() => {});
+      }
+
+      // If PAN is provided or 80G requested, create 80G Request record for SuperAdmin approval
+      if (cleanPan || request80G) {
+        let schoolNameVal = 'EduTrust Network';
+        if (schoolId) {
+          const sRes = await client.query('SELECT "schoolName" FROM "School" WHERE id = $1 LIMIT 1', [schoolId]);
+          if (sRes.rows[0]) schoolNameVal = sRes.rows[0].schoolName;
+        }
+
+        const causeVal = causeName || campaignTitle || type || 'Educational Support';
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS "Donation80GRequest" (
+            id TEXT PRIMARY KEY,
+            "donorName" VARCHAR(255) NOT NULL,
+            "donorEmail" VARCHAR(255) NOT NULL,
+            "donorPhone" VARCHAR(50),
+            "donorPan" VARCHAR(20) NOT NULL,
+            amount NUMERIC(12, 2) NOT NULL,
+            "paymentId" VARCHAR(100),
+            "causeName" VARCHAR(255) NOT NULL,
+            "schoolName" VARCHAR(255) NOT NULL,
+            "schoolId" TEXT,
+            status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+            "sentAt" TIMESTAMPTZ,
+            "receiptNo" VARCHAR(100),
+            "alumniId" UUID,
+            "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `);
+
+        await client.query(`
+          INSERT INTO "Donation80GRequest" (
+            id, "donorName", "donorEmail", "donorPhone", "donorPan",
+            amount, "paymentId", "causeName", "schoolName", "schoolId", status, "createdAt"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            "donorPan" = EXCLUDED."donorPan",
+            "amount" = EXCLUDED."amount",
+            "paymentId" = EXCLUDED."paymentId"
+        `, [
+          razorpay_payment_id,
+          donorName || 'Alumni Donor',
+          donorEmail || '',
+          donorPhone || '',
+          cleanPan || '',
+          amount,
+          razorpay_payment_id,
+          causeVal,
+          schoolNameVal,
+          schoolId || null
+        ]).catch(e => console.error('Failed to insert Donation80GRequest:', e));
+      }
 
       // Deduct from Expense or Student
       if (type === 'CONSTRUCTION' || type === 'EVENT') {

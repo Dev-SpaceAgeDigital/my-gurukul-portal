@@ -192,5 +192,34 @@ export async function ensureMasterAdminSchema() {
     console.warn('[ensureMasterAdminSchema] School table warning:', err);
   }
 
+  // 4. Ensure Alumni, Transaction & 80G Request Schema
+  try {
+    await pool.query(`
+      ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "panNo" varchar(20);
+      ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "donorPan" varchar(20);
+      CREATE TABLE IF NOT EXISTS "Donation80GRequest" (
+        "id" text PRIMARY KEY,
+        "donorName" varchar(255) NOT NULL,
+        "donorEmail" varchar(255) NOT NULL,
+        "donorPhone" varchar(50),
+        "donorPan" varchar(20) NOT NULL,
+        "amount" numeric(12, 2) NOT NULL,
+        "paymentId" varchar(100),
+        "causeName" varchar(255) NOT NULL,
+        "schoolName" varchar(255) NOT NULL,
+        "schoolId" text,
+        "status" varchar(50) NOT NULL DEFAULT 'PENDING',
+        "sentAt" timestamptz,
+        "receiptNo" varchar(100),
+        "alumniId" uuid,
+        "createdAt" timestamptz NOT NULL DEFAULT NOW()
+      );
+      ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "receiptNo" varchar(100);
+      ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "alumniId" uuid;
+    `);
+  } catch (err) {
+    console.warn('[ensureMasterAdminSchema] 80G schema init warning:', err);
+  }
+
   isSchemaEnsured = true;
 }
