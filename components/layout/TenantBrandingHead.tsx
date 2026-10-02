@@ -92,11 +92,12 @@ function applyBranding(tenant: TenantData, path: string) {
 
   document.title = pageTitle;
 
-  // Update Favicons dynamically in Chrome Tab
+  // Update Favicons and Manifest dynamically
   if (logoUrl) {
     updateLinkTag('icon', logoUrl);
     updateLinkTag('shortcut icon', logoUrl);
     updateLinkTag('apple-touch-icon', logoUrl);
+    updateLinkTag('manifest', '/manifest.json');
   }
 }
 
