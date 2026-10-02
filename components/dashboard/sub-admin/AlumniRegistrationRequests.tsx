@@ -10,6 +10,8 @@ type RegistrationRequest = {
   email: string;
   phone?: string | null;
   batchYear?: string | null;
+  apaarId?: string | null;
+  udiseNo?: string | null;
   currentTitle?: string | null;
   currentBio?: string | null;
   linkedIn?: string | null;
@@ -135,7 +137,21 @@ export default function AlumniRegistrationRequests() {
                   <tr key={request.id} className="hover:bg-slate-50">
                     <td className="px-5 py-4">
                       <div className="font-black text-slate-900">{request.name}</div>
-                      <div className="text-slate-500 line-clamp-2 max-w-xs">{request.currentBio || 'No bio added'}</div>
+                      {(request.apaarId || request.udiseNo) && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {request.apaarId && (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-[9px] font-bold text-blue-700">
+                              APAAR: {request.apaarId}
+                            </span>
+                          )}
+                          {request.udiseNo && (
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-700">
+                              UDISE: {request.udiseNo}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="text-slate-500 line-clamp-2 max-w-xs mt-0.5">{request.currentBio || 'No bio added'}</div>
                     </td>
                     <td className="px-5 py-4">
                       <div className="font-bold text-slate-800">{request.email}</div>

@@ -133,14 +133,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Your registration request has already been submitted and is pending school approval.' }, { status: 400, headers: publicHeaders });
     }
 
+    const apaarId = String(body.apaarId || '').trim();
+    const udiseNo = String(body.udiseNo || body.udiscNo || '').trim();
+
     const fullPhone = rawPhone ? (rawPhone.startsWith('+') ? rawPhone : `${countryCode} ${rawPhone}`.trim()) : null;
 
     const result = await pool.query(
       `INSERT INTO "AlumniRegistrationRequest" (
         "inviteId", "schoolId", "schoolName", name, email, phone, "countryCode", "mobileNumber", "batchYear",
-        "currentTitle", "currentBio", "linkedIn", status
+        "currentTitle", "currentBio", "linkedIn", "apaarId", "udiseNo", status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDING')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'PENDING')
       RETURNING *`,
       [
         inviteId,
@@ -155,6 +158,8 @@ export async function POST(req: Request) {
         currentTitle || null,
         currentBio || null,
         linkedIn || null,
+        apaarId || null,
+        udiseNo || null,
       ]
     );
 

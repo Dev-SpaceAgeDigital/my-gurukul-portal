@@ -18,7 +18,10 @@ import {
   CheckCircle2,
   Sparkles,
   Building2,
-  Users
+  Users,
+  Fingerprint,
+  Hash,
+  IdCard
 } from 'lucide-react';
 import { COUNTRY_CODES } from '@/lib/countryCodes';
 
@@ -37,6 +40,8 @@ const initialForm = {
   phone: '',
   schoolId: '',
   batchYear: '',
+  apaarId: '',
+  udiseNo: '',
   currentTitle: '',
   currentBio: '',
   linkedIn: '',
@@ -414,6 +419,39 @@ function AlumniRegisterContent() {
                       value={form.batchYear}
                       onChange={(e) => updateField('batchYear', e.target.value)}
                       placeholder="e.g. 2023 - 2024 or 2022"
+                      className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Unique Academic IDs: APAAR ID & UDISE ID (Optional) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Fingerprint size={13} className="text-[#3f72af]" /> APAAR ID
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold lowercase">optional</span>
+                    </label>
+                    <input
+                      value={form.apaarId}
+                      onChange={(e) => updateField('apaarId', e.target.value)}
+                      placeholder="e.g. 12-digit APAAR ID"
+                      className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Hash size={13} className="text-[#3f72af]" /> Student UDISE / PEN
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold lowercase">optional</span>
+                    </label>
+                    <input
+                      value={form.udiseNo}
+                      onChange={(e) => updateField('udiseNo', e.target.value)}
+                      placeholder="e.g. Student UDISE No"
                       className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
                     />
                   </div>

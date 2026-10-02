@@ -56,9 +56,13 @@ export async function ensureAlumniOnboardingTables() {
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "countryCode" varchar(10)');
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "mobileNumber" varchar(50)');
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "apaarId" varchar(100)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "udiseNo" varchar(100)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "countryCode" varchar(10)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "mobileNumber" varchar(50)');
+  await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "apaarId" varchar(100)');
+  await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "udiseNo" varchar(100)');
 
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_token_idx" ON "AlumniInvite" (token)');
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_school_idx" ON "AlumniInvite" ("schoolId", status, "createdAt" DESC)');
@@ -207,8 +211,8 @@ export async function createApprovedAlumniFromRequest(registration: any, request
 
   const alumniRes = await pool.query(
     `INSERT INTO "Alumni" (
-      name, email, password, "batchYear", "currentTitle", "currentBio", "linkedIn", "schoolId", "phone", "countryCode", "mobileNumber"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      name, email, password, "batchYear", "currentTitle", "currentBio", "linkedIn", "schoolId", "phone", "countryCode", "mobileNumber", "apaarId", "udiseNo"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
     [
       registration.name,
@@ -222,6 +226,8 @@ export async function createApprovedAlumniFromRequest(registration: any, request
       registration.phone || registration.mobileNumber || null,
       registration.countryCode || '+91',
       registration.mobileNumber || registration.phone || null,
+      registration.apaarId || null,
+      registration.udiseNo || null,
     ]
   );
 
