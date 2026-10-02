@@ -92,6 +92,8 @@ export async function ensureMasterAdminSchema() {
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "brevoSenderName" varchar(255);
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "bankAccountDetails" text;
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "taxExemptionNo" varchar(100);
+      ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "is80GEnabled" boolean DEFAULT false;
+      ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "min80GAmount" numeric(12, 2) DEFAULT 500;
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "sponsorshipMode" varchar(50) DEFAULT 'ZAKAT_LILLAH';
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "status" varchar(50) DEFAULT 'ACTIVE';
       ALTER TABLE "Trust" ADD COLUMN IF NOT EXISTS "plan" varchar(50) DEFAULT 'PRO';

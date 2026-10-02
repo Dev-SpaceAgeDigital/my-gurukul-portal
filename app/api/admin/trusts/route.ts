@@ -34,7 +34,10 @@ export async function POST(request: Request) {
       presidentName, 
       presidentNo, 
       trusteesName, 
-      trusteesNo 
+      trusteesNo,
+      taxExemptionNo,
+      is80GEnabled,
+      min80GAmount
     } = body;
 
     if (!trustName || !registrationNo) {
@@ -43,8 +46,8 @@ export async function POST(request: Request) {
 
     const result = await query(
       `INSERT INTO "Trust" 
-      ("trustName", "registrationNo", "establishmentYear", "presidentName", "presidentNo", "trusteesName", "trusteesNo", "createdAt", "updatedAt") 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW()) 
+      ("trustName", "registrationNo", "establishmentYear", "presidentName", "presidentNo", "trusteesName", "trusteesNo", "taxExemptionNo", "is80GEnabled", "min80GAmount", "createdAt", "updatedAt") 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
       RETURNING *`,
       [
         trustName, 
@@ -53,7 +56,10 @@ export async function POST(request: Request) {
         presidentName || null, 
         presidentNo || null, 
         trusteesName || [], 
-        trusteesNo || []
+        trusteesNo || [],
+        taxExemptionNo || null,
+        Boolean(is80GEnabled || taxExemptionNo),
+        min80GAmount ? Number(min80GAmount) : 500
       ]
     );
 
@@ -84,7 +90,10 @@ export async function PUT(request: Request) {
         presidentName, 
         presidentNo, 
         trusteesName, 
-        trusteesNo 
+        trusteesNo,
+        taxExemptionNo,
+        is80GEnabled,
+        min80GAmount
       } = body;
   
       if (!id || !trustName || !registrationNo) {
@@ -100,8 +109,11 @@ export async function PUT(request: Request) {
         "presidentNo" = $5, 
         "trusteesName" = $6, 
         "trusteesNo" = $7, 
+        "taxExemptionNo" = $8,
+        "is80GEnabled" = $9,
+        "min80GAmount" = $10,
         "updatedAt" = NOW() 
-        WHERE id = $8 RETURNING *`,
+        WHERE id = $11 RETURNING *`,
         [
           trustName, 
           registrationNo, 
@@ -110,6 +122,9 @@ export async function PUT(request: Request) {
           presidentNo || null, 
           trusteesName || [], 
           trusteesNo || [],
+          taxExemptionNo || null,
+          Boolean(is80GEnabled || taxExemptionNo),
+          min80GAmount ? Number(min80GAmount) : 500,
           id
         ]
       );

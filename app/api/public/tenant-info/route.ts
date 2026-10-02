@@ -32,7 +32,8 @@ export const GET = withPublicApi(async (req) => {
     // 1. First check if domain matches a School record
     const schoolRes = await pool.query(
       `SELECT s.id as "schoolId", s."schoolName", s."logoUrl" as "schoolLogo", s."customDomain", s."subdomain", s."trustId",
-              t."trustName", t."logoUrl" as "trustLogo", t."primaryColor"
+              t."trustName", t."logoUrl" as "trustLogo", t."primaryColor",
+              t."is80GEnabled", t."taxExemptionNo", t."min80GAmount"
        FROM "School" s
        LEFT JOIN "Trust" t ON s."trustId" = t.id
        WHERE LOWER(s."customDomain") IN ($1, $2) 
@@ -52,13 +53,17 @@ export const GET = withPublicApi(async (req) => {
         logoUrl: row.schoolLogo || row.trustLogo || '/my-gurukul.png',
         primaryColor: row.primaryColor || '#0f172a',
         trustName: row.trustName || 'Trust Network',
-        customDomain: row.customDomain || cleanHost
+        customDomain: row.customDomain || cleanHost,
+        is80GEnabled: Boolean(row.is80GEnabled),
+        taxExemptionNo: row.taxExemptionNo || null,
+        min80GAmount: row.min80GAmount ? Number(row.min80GAmount) : 500,
       });
     }
 
     // 2. Next check if domain matches a Trust record
     const trustRes = await pool.query(
-      `SELECT id as "trustId", "trustName", "logoUrl", "primaryColor", "customDomain", "slug"
+      `SELECT id as "trustId", "trustName", "logoUrl", "primaryColor", "customDomain", "slug",
+              "is80GEnabled", "taxExemptionNo", "min80GAmount"
        FROM "Trust"
        WHERE LOWER("customDomain") IN ($1, $2) 
           OR LOWER("slug") IN ($1, $3) 
@@ -76,7 +81,10 @@ export const GET = withPublicApi(async (req) => {
         logoUrl: row.logoUrl || '/my-gurukul.png',
         primaryColor: row.primaryColor || '#0f172a',
         trustName: row.trustName,
-        customDomain: row.customDomain || cleanHost
+        customDomain: row.customDomain || cleanHost,
+        is80GEnabled: Boolean(row.is80GEnabled),
+        taxExemptionNo: row.taxExemptionNo || null,
+        min80GAmount: row.min80GAmount ? Number(row.min80GAmount) : 500,
       });
     }
 

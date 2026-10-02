@@ -25,6 +25,9 @@ export default function TrustForm({ initialData, onSubmitSuccess, onCancel, isEd
     presidentNo: '',
     trusteesName: '',
     trusteesNo: '',
+    is80GEnabled: false,
+    taxExemptionNo: '',
+    min80GAmount: '500',
   });
 
   useEffect(() => {
@@ -41,6 +44,9 @@ export default function TrustForm({ initialData, onSubmitSuccess, onCancel, isEd
         trusteesNo: Array.isArray(initialData.trusteesNo)
           ? initialData.trusteesNo.join(', ')
           : (initialData.trusteesNo || ''),
+        is80GEnabled: Boolean(initialData.is80GEnabled),
+        taxExemptionNo: initialData.taxExemptionNo || '',
+        min80GAmount: initialData.min80GAmount !== undefined && initialData.min80GAmount !== null ? String(initialData.min80GAmount) : '500',
       });
     }
   }, [initialData]);
@@ -55,6 +61,9 @@ export default function TrustForm({ initialData, onSubmitSuccess, onCancel, isEd
       establishmentYear: formData.establishmentYear ? parseInt(formData.establishmentYear) : null,
       trusteesName: formData.trusteesName.split(',').map(s => s.trim()).filter(Boolean),
       trusteesNo: formData.trusteesNo.split(',').map(s => s.trim()).filter(Boolean),
+      is80GEnabled: formData.is80GEnabled,
+      taxExemptionNo: formData.taxExemptionNo || null,
+      min80GAmount: formData.is80GEnabled ? (formData.min80GAmount ? parseFloat(formData.min80GAmount) : 500) : 500,
     };
 
     try {
@@ -168,6 +177,66 @@ export default function TrustForm({ initialData, onSubmitSuccess, onCancel, isEd
             onChange={e => setFormData({ ...formData, trusteesNo: e.target.value })} 
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#1A3D63]/5 focus:border-[#1A3D63] text-sm resize-none h-24 transition-all" 
           />
+        </div>
+
+        {/* 80G Tax Exemption Settings */}
+        <div className="p-5 bg-gradient-to-br from-amber-500/[0.04] to-emerald-500/[0.04] border border-amber-500/20 rounded-2xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 font-bold text-xs">
+                80G
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">80G Tax Exemption & Donor Receipts</h4>
+                <p className="text-xs text-slate-500">Allow alumni & donors to request official 80G tax deduction receipts</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is80GEnabled}
+                onChange={e => setFormData({ ...formData, is80GEnabled: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          {formData.is80GEnabled && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-amber-500/10 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-600 tracking-wide ml-1">
+                  80G Certificate / Registration No <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required={formData.is80GEnabled}
+                  value={formData.taxExemptionNo}
+                  onChange={e => setFormData({ ...formData, taxExemptionNo: e.target.value })}
+                  placeholder="e.g. AABTM1234F21EE01"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm font-mono transition-all uppercase"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-600 tracking-wide ml-1">
+                  Minimum Donation Amount for 80G (₹)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={formData.min80GAmount}
+                  onChange={e => setFormData({ ...formData, min80GAmount: e.target.value })}
+                  placeholder="500"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm font-semibold transition-all"
+                />
+                <p className="text-[10px] text-slate-400 ml-1">
+                  Alumni donating this amount or above can request 80G tax receipt with their PAN.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex space-x-3 pt-6">
