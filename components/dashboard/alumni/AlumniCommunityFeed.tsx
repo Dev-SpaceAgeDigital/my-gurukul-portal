@@ -33,6 +33,7 @@ import {
 import { useRouter } from 'next/navigation';
 import CreatePostSubmenu from './CreatePostSubmenu';
 import RegisterOpportunityModal from './RegisterOpportunityModal';
+import AlumniMediaGallery from './AlumniMediaGallery';
 
 interface FeedItem {
   id: string;
@@ -536,11 +537,10 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                         )}
 
                         {item.mediaUrl && (
-                          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-100 sm:mt-4">
-                            <div className="aspect-video max-h-[360px] w-full">
-                              <img src={item.mediaUrl} alt={item.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
-                            </div>
-                          </div>
+                          <AlumniMediaGallery
+                            mediaUrl={item.mediaUrl}
+                            title={item.title}
+                          />
                         )}
 
                         {isOpportunity && (

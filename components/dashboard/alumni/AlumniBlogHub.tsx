@@ -12,8 +12,14 @@ import {
   Image as ImageIcon,
   Video,
   Tags,
-  FileText
+  FileText,
+  Upload,
+  X,
+  AlertCircle,
+  Link as LinkIcon
 } from 'lucide-react';
+import AlumniMediaGallery from './AlumniMediaGallery';
+import { UPLOAD_LIMITS, validateUploadFiles } from '@/lib/fileValidation';
 
 interface Blog {
   id: string;
@@ -21,7 +27,7 @@ interface Blog {
   content: string;
   tags: string[] | null;
   mediaUrl: string | null;
-  mediaType: 'IMAGE' | 'VIDEO' | null;
+  mediaType: 'IMAGE' | 'VIDEO' | 'PDF' | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
 }
@@ -34,9 +40,12 @@ type BlogFormData = {
   title: string;
   content: string;
   tags: string;
-  mediaType: 'IMAGE' | 'VIDEO';
+  mediaType: 'IMAGE' | 'VIDEO' | 'PDF';
+  videoMode: 'FILE' | 'URL';
   mediaUrl: string;
-  file: File | null;
+  imageFiles: File[];
+  videoFile: File | null;
+  pdfFile: File | null;
 };
 
 const emptyBlogFormData: BlogFormData = {
@@ -44,8 +53,11 @@ const emptyBlogFormData: BlogFormData = {
   content: '',
   tags: '',
   mediaType: 'IMAGE',
+  videoMode: 'URL',
   mediaUrl: '',
-  file: null,
+  imageFiles: [],
+  videoFile: null,
+  pdfFile: null,
 };
 
 const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
@@ -54,6 +66,7 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
   const [showForm, setShowForm] = useState(Boolean(autoOpenForm));
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
   const [formData, setFormData] = useState<BlogFormData>(() => ({ ...emptyBlogFormData }));
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (autoOpenForm) {
@@ -79,8 +92,86 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValidationError(null);
+    const selected = Array.from(e.target.files || []);
+    if (selected.length === 0) return;
+
+    const combined = [...formData.imageFiles, ...selected].slice(0, 2);
+    const val = validateUploadFiles(combined, 'IMAGE');
+    if (!val.isValid) {
+      setValidationError(val.error || 'Invalid image selection');
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, imageFiles: combined }));
+    e.target.value = '';
+  };
+
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      imageFiles: prev.imageFiles.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValidationError(null);
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+
+    const val = validateUploadFiles([file], 'VIDEO');
+    if (!val.isValid) {
+      setValidationError(val.error || 'Invalid video selection');
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, videoFile: file }));
+    e.target.value = '';
+  };
+
+  const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValidationError(null);
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+
+    const val = validateUploadFiles([file], 'PDF');
+    if (!val.isValid) {
+      setValidationError(val.error || 'Invalid PDF file');
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, pdfFile: file }));
+    e.target.value = '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
+    // Client-side validation
+    if (formData.mediaType === 'IMAGE' && formData.imageFiles.length > 0) {
+      const val = validateUploadFiles(formData.imageFiles, 'IMAGE');
+      if (!val.isValid) {
+        setValidationError(val.error || 'Invalid image selection');
+        return;
+      }
+    } else if (formData.mediaType === 'VIDEO') {
+      if (formData.videoMode === 'FILE' && formData.videoFile) {
+        const val = validateUploadFiles([formData.videoFile], 'VIDEO');
+        if (!val.isValid) {
+          setValidationError(val.error || 'Invalid video file');
+          return;
+        }
+      }
+    } else if (formData.mediaType === 'PDF' && formData.pdfFile) {
+      const val = validateUploadFiles([formData.pdfFile], 'PDF');
+      if (!val.isValid) {
+        setValidationError(val.error || 'Invalid PDF file');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -89,11 +180,19 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
       form.append('content', formData.content);
       form.append('tags', formData.tags);
       form.append('mediaType', formData.mediaType);
-      
-      if (formData.mediaType === 'IMAGE' && formData.file) {
-        form.append('file', formData.file);
+
+      if (formData.mediaType === 'IMAGE') {
+        formData.imageFiles.forEach((file) => {
+          form.append('files', file);
+        });
       } else if (formData.mediaType === 'VIDEO') {
-        form.append('mediaUrl', formData.mediaUrl);
+        if (formData.videoMode === 'FILE' && formData.videoFile) {
+          form.append('file', formData.videoFile);
+        } else {
+          form.append('mediaUrl', formData.mediaUrl);
+        }
+      } else if (formData.mediaType === 'PDF' && formData.pdfFile) {
+        form.append('file', formData.pdfFile);
       }
 
       const response = await fetch('/api/alumni/blogs', {
@@ -101,13 +200,19 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
         body: form,
       });
 
-      if (response.ok) {
-        setShowForm(false);
-        setFormData({ ...emptyBlogFormData });
-        fetchBlogs();
+      const resJson = await response.json();
+
+      if (!response.ok) {
+        setValidationError(resJson.error || 'Failed to publish article');
+        return;
       }
+
+      setShowForm(false);
+      setFormData({ ...emptyBlogFormData });
+      fetchBlogs();
     } catch (error) {
       console.error('Error creating blog:', error);
+      setValidationError('Network error while publishing article.');
     } finally {
       setSubmitting(false);
     }
@@ -124,52 +229,15 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
     }
   };
 
-  const renderMedia = (blog: Blog) => {
-    if (!blog.mediaUrl) return null;
-
-    if (blog.mediaType === 'IMAGE') {
-        return (
-            <div className="relative aspect-video rounded-2xl overflow-hidden border border-white shadow-md">
-                <img src={blog.mediaUrl} alt={blog.title} className="object-cover w-full h-full" />
-            </div>
-        );
-    } else if (blog.mediaType === 'VIDEO') {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = blog.mediaUrl.match(regExp);
-        const videoId = (match && match[2].length === 11) ? match[2] : null;
-
-        if (videoId) {
-            return (
-                <div className="aspect-video rounded-2xl overflow-hidden border border-white shadow-md bg-black">
-                    <iframe
-                        width="100%"
-                        height="100%"
-                        src={`https://www.youtube.com/embed/${videoId}`}
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                    ></iframe>
-                </div>
-            );
-        } else {
-            return (
-                <div className="p-6 bg-slate-50/50 rounded-2xl border border-dotted border-slate-300 flex items-center justify-center text-xs font-bold text-slate-400">
-                    <Video size={16} className="mr-2" /> Invalid YouTube Link: {blog.mediaUrl}
-                </div>
-            )
-        }
-    }
-    return null;
-  };
-
   const openBlogForm = () => {
     setFormData({ ...emptyBlogFormData });
+    setValidationError(null);
     setShowForm(true);
   };
 
   const closeBlogForm = () => {
     setShowForm(false);
+    setValidationError(null);
     setFormData({ ...emptyBlogFormData });
   };
 
@@ -205,7 +273,11 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
             <div className="p-8 md:p-10">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
                     <div className="lg:col-span-2 space-y-8">
-                        {renderMedia(selectedBlog)}
+                        <AlumniMediaGallery
+                          mediaUrl={selectedBlog.mediaUrl}
+                          mediaType={selectedBlog.mediaType}
+                          title={selectedBlog.title}
+                        />
                         
                         <div className="space-y-4 bg-white/50 p-8 rounded-3xl border border-white shadow-sm">
                             <div className="flex items-center text-[11px] font-bold text-blue-600 uppercase tracking-wider">
@@ -277,84 +349,250 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
             <div className="bg-white/40 backdrop-blur-md p-4 sm:p-6 md:p-10 rounded-2xl sm:rounded-3xl md:rounded-[2rem] border border-white/60 shadow-xl shadow-slate-900/5 overflow-hidden animate-in zoom-in-95 duration-300">
               <div className="mb-5 sm:mb-8 border-b border-white/50 pb-4 sm:pb-6">
                 <h3 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">Compose Article</h3>
-                <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">Inspire the community with your words</p>
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">Inspire the community with your experiences and thoughts</p>
               </div>
+
+              {validationError && (
+                <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{validationError}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Article Title</label>
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Article Title *</label>
                   <input
                     type="text"
                     required
                     placeholder="Enter a compelling title..."
-                    value={formData.title ?? ''}
+                    value={formData.title}
                     onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 animate-transition"
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400"
                   />
                 </div>
 
                 <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Content</label>
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Content *</label>
                   <textarea
                     rows={6}
                     required
                     placeholder="Write your article here..."
-                    value={formData.content ?? ''}
+                    value={formData.content}
                     onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 resize-none animate-transition"
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-6">
-                  <div className="space-y-1 sm:space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Tags (Comma separated)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Life Advice, Career, Tech"
-                      value={formData.tags ?? ''}
-                      onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 animate-transition"
-                    />
-                  </div>
-                  <div className="space-y-1 sm:space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Media Type</label>
-                    <div className="flex space-x-2 sm:space-x-4 bg-white/50 p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/80">
-                        <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, mediaType: 'IMAGE', mediaUrl: '' }))}
-                            className={`flex-1 flex items-center justify-center p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${formData.mediaType === 'IMAGE' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <ImageIcon size={15} className="mr-1.5 sm:mr-2" /> Image
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, mediaType: 'VIDEO', file: null }))}
-                            className={`flex-1 flex items-center justify-center p-2 sm:p-2.5 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${formData.mediaType === 'VIDEO' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Video size={15} className="mr-1.5 sm:mr-2" /> YouTube
-                        </button>
-                    </div>
-                  </div>
+                <div className="space-y-1 sm:space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Tags (Comma separated)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Life Advice, Career, Tech, Mentorship, Campus Days"
+                    value={formData.tags}
+                    onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400"
+                  />
                 </div>
 
-                <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
-                    {formData.mediaType === 'IMAGE' ? 'Upload Illustration' : 'YouTube Link'}
-                  </label>
-                  {formData.mediaType === 'IMAGE' ? (
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => setFormData(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
-                        className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 animate-transition"
-                    />
-                  ) : (
-                    <input
-                        type="url"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        value={formData.mediaUrl ?? ''}
-                        onChange={e => setFormData(prev => ({ ...prev, mediaUrl: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/50 border border-slate-200/80 hover:bg-white focus:bg-white focus:border-blue-500 rounded-xl sm:rounded-2xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 animate-transition"
-                    />
+                {/* Media Attachment Selector */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                      Media Attachment
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                      {formData.mediaType === 'IMAGE' && UPLOAD_LIMITS.IMAGE.label}
+                      {formData.mediaType === 'VIDEO' && UPLOAD_LIMITS.VIDEO.label}
+                      {formData.mediaType === 'PDF' && UPLOAD_LIMITS.PDF.label}
+                    </span>
+                  </div>
+
+                  {/* Attachment Tabs */}
+                  <div className="grid grid-cols-3 gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, mediaType: 'IMAGE' }))}
+                      className={`flex items-center justify-center p-2.5 rounded-xl text-xs font-bold transition-all ${formData.mediaType === 'IMAGE' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      <ImageIcon size={15} className="mr-1.5" />
+                      <span>Photos (Max 2)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, mediaType: 'VIDEO' }))}
+                      className={`flex items-center justify-center p-2.5 rounded-xl text-xs font-bold transition-all ${formData.mediaType === 'VIDEO' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      <Video size={15} className="mr-1.5" />
+                      <span>Video / Reel</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, mediaType: 'PDF' }))}
+                      className={`flex items-center justify-center p-2.5 rounded-xl text-xs font-bold transition-all ${formData.mediaType === 'PDF' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      <FileText size={15} className="mr-1.5" />
+                      <span>PDF Document</span>
+                    </button>
+                  </div>
+
+                  {/* 1. Image Upload Section (Max 2) */}
+                  {formData.mediaType === 'IMAGE' && (
+                    <div className="space-y-3 bg-white/60 p-4 rounded-2xl border border-slate-200/80">
+                      {formData.imageFiles.length < 2 && (
+                        <div>
+                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-blue-200 hover:border-blue-400 bg-blue-50/50 hover:bg-blue-50/80 p-5 rounded-2xl cursor-pointer transition-colors text-center">
+                            <Upload size={22} className="text-blue-600 mb-1.5" />
+                            <span className="text-xs font-bold text-slate-800">
+                              Upload Illustration / Photos (JPG, PNG, WEBP)
+                            </span>
+                            <span className="text-[10px] text-slate-500 mt-0.5">
+                              Select up to 2 images • Max 5MB each • {formData.imageFiles.length}/2 selected
+                            </span>
+                            <input
+                              type="file"
+                              accept={UPLOAD_LIMITS.IMAGE.acceptString}
+                              multiple
+                              onChange={handleImageSelect}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Image Preview List */}
+                      {formData.imageFiles.length > 0 && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          {formData.imageFiles.map((file, idx) => (
+                            <div key={idx} className="relative group bg-slate-900 rounded-xl overflow-hidden aspect-video border border-slate-200 shadow-sm flex items-center justify-center">
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={`Preview ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between p-2">
+                                <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded">
+                                  {(file.size / (1024 * 1024)).toFixed(1)} MB
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(idx)}
+                                  className="p-1 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                                  title="Remove image"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 2. Video Upload Section (Max 1) */}
+                  {formData.mediaType === 'VIDEO' && (
+                    <div className="space-y-3 bg-white/60 p-4 rounded-2xl border border-slate-200/80">
+                      <div className="flex items-center gap-2 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, videoMode: 'URL', videoFile: null }))}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${formData.videoMode === 'URL' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
+                        >
+                          YouTube / Vimeo Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, videoMode: 'FILE', mediaUrl: '' }))}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all ${formData.videoMode === 'FILE' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
+                        >
+                          Upload Video File (MP4/WEBM Max 30MB)
+                        </button>
+                      </div>
+
+                      {formData.videoMode === 'URL' ? (
+                        <div className="space-y-1">
+                          <input
+                            type="url"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={formData.mediaUrl}
+                            onChange={e => setFormData(prev => ({ ...prev, mediaUrl: e.target.value }))}
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          {formData.videoFile ? (
+                            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-200">
+                              <div className="flex items-center gap-2.5">
+                                <Video size={18} className="text-blue-600" />
+                                <div>
+                                  <p className="text-xs font-bold text-slate-900">{formData.videoFile.name}</p>
+                                  <p className="text-[10px] text-slate-500">{(formData.videoFile.size / (1024 * 1024)).toFixed(1)} MB / 30MB Max</p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, videoFile: null }))}
+                                className="p-1.5 text-slate-400 hover:text-red-600"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center justify-center border-2 border-dashed border-blue-200 hover:border-blue-400 bg-blue-50/50 hover:bg-blue-50/80 p-5 rounded-2xl cursor-pointer transition-colors text-center">
+                              <Upload size={22} className="text-blue-600 mb-1.5" />
+                              <span className="text-xs font-bold text-slate-800">Choose Video File</span>
+                              <span className="text-[10px] text-slate-500 mt-0.5">MP4, WEBM, MOV • Max 30MB (1 video allowed)</span>
+                              <input
+                                type="file"
+                                accept={UPLOAD_LIMITS.VIDEO.acceptString}
+                                onChange={handleVideoSelect}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. PDF Document Section (Max 1) */}
+                  {formData.mediaType === 'PDF' && (
+                    <div className="space-y-3 bg-white/60 p-4 rounded-2xl border border-slate-200/80">
+                      {formData.pdfFile ? (
+                        <div className="flex items-center justify-between p-3.5 bg-red-50 rounded-xl border border-red-200">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-lg bg-red-600 text-white flex items-center justify-center">
+                              <FileText size={18} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">{formData.pdfFile.name}</p>
+                              <p className="text-[10px] text-slate-500">{(formData.pdfFile.size / (1024 * 1024)).toFixed(1)} MB / 10MB Max</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, pdfFile: null }))}
+                            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-red-200 hover:border-red-400 bg-red-50/40 hover:bg-red-50/70 p-5 rounded-2xl cursor-pointer transition-colors text-center">
+                          <Upload size={22} className="text-red-600 mb-1.5" />
+                          <span className="text-xs font-bold text-slate-800">Upload Article PDF / Whitepaper</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">PDF Document • Max 10MB (1 file allowed)</span>
+                          <input
+                            type="file"
+                            accept={UPLOAD_LIMITS.PDF.acceptString}
+                            onChange={handlePdfSelect}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -369,7 +607,7 @@ const AlumniBlogHub: React.FC<AlumniBlogHubProps> = ({ autoOpenForm }) => {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full sm:w-auto flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl sm:rounded-2xl font-bold text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
+                    className="w-full sm:w-auto flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl sm:rounded-2xl font-bold text-xs shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <BookOpen size={16} className="mr-2" />}
                     Publish Article

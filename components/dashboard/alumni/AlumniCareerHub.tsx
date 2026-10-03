@@ -473,7 +473,7 @@ export default function AlumniCareerHub({ autoOpenForm, initialType = 'JOB' }: A
                 <Briefcase size={32} />
              </div>
              <h3 className="text-lg font-bold text-slate-800">No Jobs / Internships Added Yet</h3>
-             <p className="text-slate-500 text-xs font-medium mt-1.5 max-w-sm mx-auto">Share hiring opportunities or referrals to help Madni students and alumni.</p>
+             <p className="text-slate-500 text-xs font-medium mt-1.5 max-w-sm mx-auto">Share hiring opportunities or referrals to help students and junior alumni.</p>
              <button
                onClick={() => setShowForm(true)}
                className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-extrabold px-5 py-2.5 rounded-2xl shadow-md inline-flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02] mt-5"

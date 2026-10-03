@@ -31,6 +31,7 @@ import {
   Repeat
 } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
+import AlumniMediaGallery from '@/components/dashboard/alumni/AlumniMediaGallery';
 
 type ModerationTab = 'job' | 'mentorship' | 'blog' | 'achievement' | 'aoy';
 type ModerationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -63,6 +64,8 @@ interface Interaction {
   sessionDate?: string | null;
   sessionTime?: string | null;
   frequency?: string | null;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
   status: ModerationStatus;
   isFeatured?: boolean;
   alumniName: string;
@@ -652,6 +655,17 @@ export default function AlumniInteractionManager() {
                       <p className="text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-md border border-slate-100">
                         {getDescription(item)}
                       </p>
+
+                      {/* Media Gallery / Proof Viewer */}
+                      {item.mediaUrl && (
+                        <div className="max-w-xl">
+                          <AlumniMediaGallery
+                            mediaUrl={item.mediaUrl}
+                            mediaType={item.mediaType}
+                            title={getTitle(item)}
+                          />
+                        </div>
+                      )}
 
                       {/* Job / Internship Full Details Grid */}
                       {activeTab === 'job' && (

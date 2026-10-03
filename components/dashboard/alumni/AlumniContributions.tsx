@@ -326,7 +326,7 @@ export default function AlumniContributions() {
                      Give Back & Donations
                   </h2>
                   <p className="ml-0.5 max-w-xl text-[10.5px] font-medium leading-relaxed text-slate-600 sm:text-xs">
-                     Support Madni Education by funding active projects or sponsoring a student's future.
+                     Support institutional education by funding active projects or sponsoring a student's future.
                   </p>
                </div>
 

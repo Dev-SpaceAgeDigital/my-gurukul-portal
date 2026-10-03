@@ -71,10 +71,26 @@ export async function uploadMedia(
   file: Buffer,
   fileName: string,
   folderOrOptions: string | MultiTenantStoragePathOptions,
-  isImage: boolean = true
+  isImage: boolean = true,
+  customMimeType?: string
 ): Promise<{ secure_url: string; public_id: string }> {
   let bufferToUpload = file;
   let finalFileName = fileName;
+
+  const getMimeTypeFromExt = (name: string): string => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'mp4': return 'video/mp4';
+      case 'webm': return 'video/webm';
+      case 'mov': return 'video/quicktime';
+      case 'png': return 'image/png';
+      case 'jpg':
+      case 'jpeg': return 'image/jpeg';
+      case 'webp': return 'image/webp';
+      default: return 'application/octet-stream';
+    }
+  };
 
   if (isImage) {
     try {
@@ -92,7 +108,7 @@ export async function uploadMedia(
   }
 
   try {
-    const mimeType = isImage ? 'image/webp' : 'application/octet-stream';
+    const mimeType = customMimeType || (isImage ? 'image/webp' : getMimeTypeFromExt(finalFileName));
     let storagePath = '';
 
     if (typeof folderOrOptions === 'object') {

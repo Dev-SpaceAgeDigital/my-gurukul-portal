@@ -94,7 +94,7 @@ export default function AlumniCSRHub() {
                 <Sparkles size={12} />
                 CSR Referrals
               </div>
-              <h2 className="text-base font-extrabold tracking-tight text-slate-900 sm:text-2xl">Connect companies with Madni impact.</h2>
+              <h2 className="text-base font-extrabold tracking-tight text-slate-900 sm:text-2xl">Connect companies with institutional impact.</h2>
               <p className="mt-1 max-w-2xl text-[10.5px] font-medium leading-relaxed text-slate-600 sm:text-xs">
                 Refer a company or workplace that may support students, infrastructure, events, libraries, labs, or scholarships.
               </p>
