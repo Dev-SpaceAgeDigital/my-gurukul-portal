@@ -217,10 +217,28 @@ export async function ensureMasterAdminSchema() {
         "createdAt" timestamptz NOT NULL DEFAULT NOW()
       );
       ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "receiptNo" varchar(100);
-      ALTER TABLE "Donation80GRequest" ADD COLUMN IF NOT EXISTS "alumniId" uuid;
+      CREATE TABLE IF NOT EXISTS "LoginOtp" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "role" VARCHAR(50) NOT NULL,
+        "email" VARCHAR(255) NOT NULL,
+        "otp" VARCHAR(10) NOT NULL,
+        "attempts" INTEGER DEFAULT 0,
+        "expiresAt" TIMESTAMPTZ NOT NULL,
+        "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+        CONSTRAINT "unique_role_email_otp" UNIQUE ("role", "email")
+      );
+      CREATE TABLE IF NOT EXISTS "PasswordResetOtp" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "email" VARCHAR(255) NOT NULL UNIQUE,
+        "alumniId" VARCHAR(255),
+        "otp" VARCHAR(10) NOT NULL,
+        "attempts" INTEGER DEFAULT 0,
+        "expiresAt" TIMESTAMPTZ NOT NULL,
+        "createdAt" TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
   } catch (err) {
-    console.warn('[ensureMasterAdminSchema] 80G schema init warning:', err);
+    console.warn('[ensureMasterAdminSchema] 80G and OTP schema init warning:', err);
   }
 
   isSchemaEnsured = true;

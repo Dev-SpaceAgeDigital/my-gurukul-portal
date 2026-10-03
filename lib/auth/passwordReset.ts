@@ -22,6 +22,18 @@ export async function sendAlumniPasswordResetOtp(input: AlumniResetInput) {
   const otp = String(crypto.randomInt(100000, 999999));
   const subject = `${otp} is your Madni Alumni password reset OTP`;
 
+  try {
+    const { default: pool } = await import('@/lib/db');
+    await pool.query(`
+      INSERT INTO "PasswordResetOtp" ("email", "alumniId", "otp", "attempts", "expiresAt")
+      VALUES ($1, $2, $3, 0, NOW() + INTERVAL '10 minutes')
+      ON CONFLICT ("email")
+      DO UPDATE SET "otp" = $3, "alumniId" = $2, "attempts" = 0, "expiresAt" = NOW() + INTERVAL '10 minutes', "createdAt" = NOW()
+    `, [email, input.alumniId, otp]);
+  } catch (dbErr) {
+    console.warn('[PasswordReset] DB OTP store warning:', dbErr);
+  }
+
   await redis.set(getResetKey(email), JSON.stringify({ otp, alumniId: input.alumniId }), { ex: RESET_TTL_SECONDS });
   await redis.del(getResetAttemptsKey(email));
 
@@ -70,6 +82,40 @@ export async function sendAlumniPasswordResetOtp(input: AlumniResetInput) {
 
 export async function verifyAlumniPasswordResetOtp(emailInput: string, otpInput: string) {
   const email = normalizeResetEmail(emailInput);
+  const cleanOtp = String(otpInput || '').trim();
+
+  // 1. Check PostgreSQL Database First
+  try {
+    const { default: pool } = await import('@/lib/db');
+    const res = await pool.query(
+      'SELECT "alumniId", "otp", "attempts", "expiresAt" FROM "PasswordResetOtp" WHERE LOWER("email") = $1',
+      [email]
+    );
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      const isExpired = new Date(row.expiresAt).getTime() < Date.now();
+      if (isExpired) {
+        await pool.query('DELETE FROM "PasswordResetOtp" WHERE LOWER("email") = $1', [email]);
+        return { ok: false, error: 'OTP expired. Please request a new OTP.' };
+      }
+      if (row.attempts >= RESET_ATTEMPT_LIMIT) {
+        return { ok: false, error: 'Too many wrong OTP attempts. Please request a new OTP.' };
+      }
+
+      if (row.otp === cleanOtp) {
+        await pool.query('DELETE FROM "PasswordResetOtp" WHERE LOWER("email") = $1', [email]);
+        await clearAlumniPasswordResetOtp(email);
+        return { ok: true, alumniId: row.alumniId as string };
+      } else {
+        await pool.query('UPDATE "PasswordResetOtp" SET "attempts" = "attempts" + 1 WHERE LOWER("email") = $1', [email]);
+        return { ok: false, error: 'Invalid OTP.' };
+      }
+    }
+  } catch (dbErr) {
+    console.warn('[PasswordReset] DB verify fallback to Redis:', dbErr);
+  }
+
+  // 2. Fallback to Redis / In-Memory
   const attempts = await redis.incr(getResetAttemptsKey(email));
   if (attempts === 1) await redis.expire(getResetAttemptsKey(email), RESET_TTL_SECONDS);
 
@@ -82,7 +128,7 @@ export async function verifyAlumniPasswordResetOtp(emailInput: string, otpInput:
 
   try {
     const parsed = JSON.parse(stored);
-    if (parsed.otp !== String(otpInput || '').trim()) {
+    if (parsed.otp !== cleanOtp) {
       return { ok: false, error: 'Invalid OTP.' };
     }
     return { ok: true, alumniId: parsed.alumniId as string };
@@ -93,6 +139,10 @@ export async function verifyAlumniPasswordResetOtp(emailInput: string, otpInput:
 
 export async function clearAlumniPasswordResetOtp(emailInput: string) {
   const email = normalizeResetEmail(emailInput);
+  try {
+    const { default: pool } = await import('@/lib/db');
+    await pool.query('DELETE FROM "PasswordResetOtp" WHERE LOWER("email") = $1', [email]);
+  } catch {}
   await redis.del(getResetKey(email));
   await redis.del(getResetAttemptsKey(email));
 }

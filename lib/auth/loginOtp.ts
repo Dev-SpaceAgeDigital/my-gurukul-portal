@@ -133,6 +133,19 @@ export async function startLoginOtp(input: LoginOtpInput) {
 
   const subject = `${otp} is your ${resolvedBrandName} login OTP`;
 
+  // Persist to PostgreSQL Database for robust multi-process PM2 cluster reliability
+  try {
+    const { default: pool } = await import('@/lib/db');
+    await pool.query(`
+      INSERT INTO "LoginOtp" ("role", "email", "otp", "attempts", "expiresAt")
+      VALUES ($1, $2, $3, 0, NOW() + INTERVAL '10 minutes')
+      ON CONFLICT ("role", "email")
+      DO UPDATE SET "otp" = $3, "attempts" = 0, "expiresAt" = NOW() + INTERVAL '10 minutes', "createdAt" = NOW()
+    `, [input.role, email, otp]);
+  } catch (dbErr) {
+    console.warn('[LoginOtp] DB OTP store warning:', dbErr);
+  }
+
   await redis.set(otpKey, JSON.stringify({ otp, email, role: input.role }), { ex: OTP_TTL_SECONDS });
   await redis.del(attemptsKey);
 
@@ -203,6 +216,10 @@ export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInpu
   const isDemo = isDemoEmail(email);
 
   if (isDemo && otp === DEMO_OTP) {
+    try {
+      const { default: pool } = await import('@/lib/db');
+      await pool.query('DELETE FROM "LoginOtp" WHERE "role" = $1 AND LOWER("email") = $2', [role, email]);
+    } catch {}
     const otpKey = getOtpKey(role, email);
     const attemptsKey = getAttemptsKey(role, email);
     await redis.del(otpKey);
@@ -210,6 +227,41 @@ export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInpu
     return { ok: true };
   }
 
+  // 1. Check PostgreSQL Database First (shared across all PM2 cluster workers)
+  try {
+    const { default: pool } = await import('@/lib/db');
+    const res = await pool.query(
+      'SELECT "otp", "attempts", "expiresAt" FROM "LoginOtp" WHERE "role" = $1 AND LOWER("email") = $2',
+      [role, email]
+    );
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      const isExpired = new Date(row.expiresAt).getTime() < Date.now();
+      if (isExpired) {
+        await pool.query('DELETE FROM "LoginOtp" WHERE "role" = $1 AND LOWER("email") = $2', [role, email]);
+        return { ok: false, error: 'OTP expired. Please request a new OTP.' };
+      }
+      if (row.attempts >= OTP_ATTEMPT_LIMIT) {
+        return { ok: false, error: 'Too many wrong OTP attempts. Please request a new OTP.' };
+      }
+
+      if (row.otp === otp || (isDemo && otp === DEMO_OTP)) {
+        await pool.query('DELETE FROM "LoginOtp" WHERE "role" = $1 AND LOWER("email") = $2', [role, email]);
+        const otpKey = getOtpKey(role, email);
+        const attemptsKey = getAttemptsKey(role, email);
+        await redis.del(otpKey);
+        await redis.del(attemptsKey);
+        return { ok: true };
+      } else {
+        await pool.query('UPDATE "LoginOtp" SET "attempts" = "attempts" + 1 WHERE "role" = $1 AND LOWER("email") = $2', [role, email]);
+        return { ok: false, error: 'Invalid OTP. Please check the code sent to your email.' };
+      }
+    }
+  } catch (dbErr) {
+    console.warn('[LoginOtp] DB verify fallback to Redis:', dbErr);
+  }
+
+  // 2. Fallback to Redis / In-Memory
   const otpKey = getOtpKey(role, email);
   const attemptsKey = getAttemptsKey(role, email);
   const attempts = await redis.incr(attemptsKey);
@@ -225,12 +277,12 @@ export async function verifyLoginOtp(role: UserRole, emailInput: string, otpInpu
   const stored = await redis.get(otpKey);
   if (!stored) {
     if (isDemo) return { ok: true };
-    return { ok: false, error: 'OTP expired. Please login again.' };
+    return { ok: false, error: 'OTP expired or not found. Please request a new OTP.' };
   }
 
   try {
     const parsed = JSON.parse(stored);
-    if (parsed.otp !== otp && !(isDemo && otp === DEMO_OTP)) return { ok: false, error: 'Invalid OTP.' };
+    if (parsed.otp !== otp && !(isDemo && otp === DEMO_OTP)) return { ok: false, error: 'Invalid OTP. Please check the code sent to your email.' };
   } catch {
     if (!isDemo) return { ok: false, error: 'Invalid OTP session.' };
   }
