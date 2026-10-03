@@ -7,6 +7,7 @@ import {
   Megaphone,
   Briefcase,
   CheckCircle,
+  CheckCircle2,
   ChevronDown,
   GraduationCap,
   Handshake,
@@ -31,6 +32,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import CreatePostSubmenu from './CreatePostSubmenu';
 import RegisterOpportunityModal from './RegisterOpportunityModal';
 import AlumniMediaGallery from './AlumniMediaGallery';
@@ -60,6 +62,9 @@ interface FeedItem {
   likeCount?: number;
   viewCount?: number;
   userLiked?: boolean;
+  userInterest?: 'INTERESTED' | 'REFERRAL_CONTACT' | null;
+  userRegistered?: boolean;
+  isOwner?: boolean;
 }
 
 interface AlumniCommunityFeedProps {
@@ -165,6 +170,7 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [trendingTopics, setTrendingTopics] = useState<any[]>([]);
   const [interestedState, setInterestedState] = useState<Record<string, 'interested' | 'have_people' | null>>({});
+  const [registeredState, setRegisteredState] = useState<Record<string, boolean>>({});
   const [suggestedAlumni, setSuggestedAlumni] = useState<any[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [tenantInfo, setTenantInfo] = useState<{ logoUrl: string; name: string } | null>(null);
@@ -222,12 +228,17 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
         const userLikesMap: Record<string, boolean> = {};
         const countsMap: Record<string, number> = {};
         const viewsMap: Record<string, number> = {};
+        const initialInterests: Record<string, 'interested' | 'have_people' | null> = {};
+        const initialRegistrations: Record<string, boolean> = {};
         const itemIdsToRecordView: string[] = [];
 
-        data.items.forEach((item: FeedItem) => {
+        data.items.forEach((item: any) => {
           userLikesMap[item.id] = Boolean(item.userLiked);
           countsMap[item.id] = item.likeCount ?? 0;
           viewsMap[item.id] = item.viewCount ?? 0;
+          if (item.userInterest === 'INTERESTED') initialInterests[item.id] = 'interested';
+          else if (item.userInterest === 'REFERRAL_CONTACT') initialInterests[item.id] = 'have_people';
+          if (item.userRegistered) initialRegistrations[item.id] = true;
           if (item.id) itemIdsToRecordView.push(item.id);
         });
 
@@ -235,10 +246,14 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
           setLikes(userLikesMap);
           setLikeCounts(countsMap);
           setViewCounts(viewsMap);
+          setInterestedState(initialInterests);
+          setRegisteredState(initialRegistrations);
         } else {
           setLikes((prev) => ({ ...prev, ...userLikesMap }));
           setLikeCounts((prev) => ({ ...prev, ...countsMap }));
           setViewCounts((prev) => ({ ...prev, ...viewsMap }));
+          setInterestedState((prev) => ({ ...prev, ...initialInterests }));
+          setRegisteredState((prev) => ({ ...prev, ...initialRegistrations }));
         }
 
         if (itemIdsToRecordView.length > 0) {
@@ -298,11 +313,32 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
     } catch { }
   };
 
-  const toggleInterest = (id: string, type: 'interested' | 'have_people') => {
+  const toggleInterest = async (id: string, type: 'interested' | 'have_people', postType: string) => {
+    const serverType = type === 'interested' ? 'INTERESTED' : 'REFERRAL_CONTACT';
+    const current = interestedState[id];
+    const newType = current === type ? null : type;
+
     setInterestedState(prev => ({
       ...prev,
-      [id]: prev[id] === type ? null : type,
+      [id]: newType,
     }));
+
+    try {
+      const res = await fetch('/api/alumni/career/interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ careerId: id, interestType: serverType, postType }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInterestedState(prev => ({
+          ...prev,
+          [id]: data.active ? (data.interestType === 'INTERESTED' ? 'interested' : 'have_people') : null,
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle interest:', err);
+    }
   };
 
   const toggleExpanded = (id: string) => {
@@ -410,6 +446,7 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                 const currentViews = viewCounts[item.id] ?? (item.viewCount || 0);
                 const isOpportunity = item.itemType === 'job' || item.itemType === 'internship' || item.itemType === 'mentorship';
                 const interested = interestedState[item.id];
+                const isRegistered = registeredState[item.id] ?? Boolean(item.userRegistered);
                 const expanded = Boolean(expandedItems[item.id]);
                 const preview = getPreviewText(item.content, expanded);
 
@@ -545,46 +582,68 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
 
                         {isOpportunity && (
                           <div className="mt-3 space-y-2 sm:mt-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setRegisterModalPost({
-                                  id: item.id,
-                                  title: item.title,
-                                  postType: item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER',
-                                  authorName: item.alumniName,
-                                  subtitle: item.itemType === 'mentorship' ? `${item.format || 'Mentorship'} • ${item.category || ''}` : item.badge,
-                                })}
-                                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3 text-xs font-extrabold shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
-                              >
-                                <Send size={13} />
-                                <span>{item.itemType === 'mentorship' ? 'Register Mentorship' : 'Apply / Register'}</span>
-                              </button>
+                            {item.isOwner ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Link
+                                  href={`/alumni/registrations?postType=${item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER'}&postId=${item.id}`}
+                                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 px-4 text-xs font-black shadow-xs active:scale-95 transition-all"
+                                >
+                                  <Users size={14} className="text-indigo-600" />
+                                  <span>View Registrations & Interests</span>
+                                </Link>
+                                <span className="text-[11px] font-semibold text-slate-400 italic">
+                                  (You authored this post)
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {isRegistered ? (
+                                  <div className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 text-xs font-extrabold text-emerald-800 shadow-xs">
+                                    <CheckCircle2 size={14} className="text-emerald-600" />
+                                    <span>✓ Already Registered</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRegisterModalPost({
+                                      id: item.id,
+                                      title: item.title,
+                                      postType: item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER',
+                                      authorName: item.alumniName,
+                                      subtitle: item.itemType === 'mentorship' ? `${item.format || 'Mentorship'} • ${item.category || ''}` : item.badge,
+                                    })}
+                                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3 text-xs font-extrabold shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                                  >
+                                    <Send size={13} />
+                                    <span>{item.itemType === 'mentorship' ? 'Register Mentorship' : 'Apply / Register'}</span>
+                                  </button>
+                                )}
 
-                              <button
-                                type="button"
-                                onClick={() => toggleInterest(item.id, 'interested')}
-                                className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border px-3 text-xs font-bold transition-all cursor-pointer ${interested === 'interested'
-                                    ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                  }`}
-                              >
-                                <CheckCircle size={14} />
-                                <span className="truncate">{interested === 'interested' ? 'Interested' : "I'm Interested"}</span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInterest(item.id, 'interested', item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER')}
+                                  className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border px-3 text-xs font-bold transition-all cursor-pointer ${interested === 'interested'
+                                      ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                      : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                    }`}
+                                >
+                                  <CheckCircle size={14} />
+                                  <span className="truncate">{interested === 'interested' ? '✓ Interested' : "I'm Interested"}</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => toggleInterest(item.id, 'have_people')}
-                                className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border px-3 text-xs font-bold transition-all cursor-pointer ${interested === 'have_people'
-                                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
-                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                  }`}
-                              >
-                                <UserPlus size={14} />
-                                <span className="truncate">{interested === 'have_people' ? 'Have Referral' : 'I Have People'}</span>
-                              </button>
-                            </div>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInterest(item.id, 'have_people', item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER')}
+                                  className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border px-3 text-xs font-bold transition-all cursor-pointer ${interested === 'have_people'
+                                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                                      : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                    }`}
+                                >
+                                  <UserPlus size={14} />
+                                  <span className="truncate">{interested === 'have_people' ? '✓ Have Referral' : 'I Have People'}</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -751,6 +810,11 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
           isOpen={Boolean(registerModalPost)}
           onClose={() => setRegisterModalPost(null)}
           post={registerModalPost}
+          onSuccess={() => {
+            if (registerModalPost?.id) {
+              setRegisteredState((prev) => ({ ...prev, [registerModalPost.id]: true }));
+            }
+          }}
         />
       )}
     </div>

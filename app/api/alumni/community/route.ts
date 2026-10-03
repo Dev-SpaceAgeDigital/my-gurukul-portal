@@ -12,7 +12,7 @@ async function enrichItemsWithInteractions(items: any[], currentAlumniId: string
   if (itemIds.length === 0) return items;
 
   try {
-    const [likesRes, viewsRes] = await Promise.all([
+    const [likesRes, viewsRes, interestsRes, registrationsRes, userEmailRes] = await Promise.all([
       pool.query(
         `SELECT 
           "feedItemId",
@@ -32,6 +32,23 @@ async function enrichItemsWithInteractions(items: any[], currentAlumniId: string
         GROUP BY "feedItemId"`,
         [itemIds]
       ),
+      pool.query(
+        `SELECT "careerId", "interestType"
+         FROM "CareerInterest"
+         WHERE "alumniId" = $1 AND "careerId" = ANY($2::uuid[])`,
+        [currentAlumniId, itemIds]
+      ).catch(() => ({ rows: [] })),
+      pool.query(
+        `SELECT DISTINCT "postId"
+         FROM "OpportunityRegistration"
+         WHERE ("alumniId" = $1 OR LOWER("email") = (SELECT LOWER(email) FROM "Alumni" WHERE id = $1))
+           AND "postId" = ANY($2::uuid[])`,
+        [currentAlumniId, itemIds]
+      ).catch(() => ({ rows: [] })),
+      pool.query(
+        `SELECT email FROM "Alumni" WHERE id = $1`,
+        [currentAlumniId]
+      ).catch(() => ({ rows: [] }))
     ]);
 
     const likesMap = new Map<string, { likeCount: number; userLiked: boolean }>();
@@ -47,14 +64,31 @@ async function enrichItemsWithInteractions(items: any[], currentAlumniId: string
       viewsMap.set(row.feedItemId, row.viewCount || 0);
     });
 
+    const interestsMap = new Map<string, 'INTERESTED' | 'REFERRAL_CONTACT'>();
+    interestsRes.rows.forEach((row: any) => {
+      interestsMap.set(row.careerId, row.interestType);
+    });
+
+    const registrationsSet = new Set<string>();
+    registrationsRes.rows.forEach((row: any) => {
+      registrationsSet.add(row.postId);
+    });
+
     return items.map((item) => {
       const likeInfo = likesMap.get(item.id) || { likeCount: 0, userLiked: false };
       const viewCount = viewsMap.get(item.id) || 0;
+      const userInterest = interestsMap.get(item.id) || null;
+      const userRegistered = registrationsSet.has(item.id);
+      const isOwner = Boolean(item.alumniId && item.alumniId === currentAlumniId);
+
       return {
         ...item,
         likeCount: likeInfo.likeCount,
         userLiked: likeInfo.userLiked,
         viewCount,
+        userInterest,
+        userRegistered,
+        isOwner,
       };
     });
   } catch (err) {
@@ -64,6 +98,9 @@ async function enrichItemsWithInteractions(items: any[], currentAlumniId: string
       likeCount: item.likeCount || 0,
       userLiked: item.userLiked || false,
       viewCount: item.viewCount || 0,
+      userInterest: null,
+      userRegistered: false,
+      isOwner: Boolean(item.alumniId && item.alumniId === currentAlumniId),
     }));
   }
 }

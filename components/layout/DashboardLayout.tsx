@@ -54,6 +54,14 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+const TAB_BADGE_MAP: Record<string, string> = {
+  'Community Feed': 'feed',
+  'School Memories': 'memories',
+  'Give Back': 'giveBack',
+  'My Posts': 'myPosts',
+  'My Impact': 'impact',
+};
+
 export default function DashboardLayout({ title, role, activeItem: externalActiveItem, onNavigate, children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,10 +70,57 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [internalActiveItem, setInternalActiveItem] = useState('Dashboard');
   const [greeting, setGreeting] = useState('Welcome back');
+  const [tabBadges, setTabBadges] = useState<Record<string, number>>({});
   const activeItem = externalActiveItem || internalActiveItem;
   const router = useRouter();
 
   const [tenantInfo, setTenantInfo] = useState<{ logoUrl: string; name: string; trustName?: string } | null>(null);
+
+  const fetchTabBadges = async () => {
+    if (role !== 'ALUMNI') return;
+    try {
+      const feedSince = typeof window !== 'undefined' ? localStorage.getItem('alumni_visited_feed') : null;
+      const memoriesSince = typeof window !== 'undefined' ? localStorage.getItem('alumni_visited_memories') : null;
+      const giveBackSince = typeof window !== 'undefined' ? localStorage.getItem('alumni_visited_giveBack') : null;
+      const myPostsSince = typeof window !== 'undefined' ? localStorage.getItem('alumni_visited_myPosts') : null;
+      const impactSince = typeof window !== 'undefined' ? localStorage.getItem('alumni_visited_impact') : null;
+
+      const params = new URLSearchParams();
+      if (feedSince) params.set('feedSince', feedSince);
+      if (memoriesSince) params.set('memoriesSince', memoriesSince);
+      if (giveBackSince) params.set('giveBackSince', giveBackSince);
+      if (myPostsSince) params.set('myPostsSince', myPostsSince);
+      if (impactSince) params.set('impactSince', impactSince);
+
+      const res = await fetch(`/api/alumni/tab-badges?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTabBadges(data || {});
+      }
+    } catch { }
+  };
+
+  const markTabVisited = (tabName: string) => {
+    const badgeKey = TAB_BADGE_MAP[tabName];
+    if (badgeKey && typeof window !== 'undefined') {
+      localStorage.setItem(`alumni_visited_${badgeKey}`, Date.now().toString());
+      setTabBadges(prev => ({ ...prev, [badgeKey]: 0 }));
+    }
+  };
+
+  useEffect(() => {
+    if (activeItem) {
+      markTabVisited(activeItem);
+    }
+  }, [activeItem]);
+
+  useEffect(() => {
+    if (role === 'ALUMNI') {
+      fetchTabBadges();
+      const interval = setInterval(fetchTabBadges, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [role]);
 
   useEffect(() => {
     // 1. Fetch authenticated user profile
@@ -125,8 +180,8 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
     return activeItem || title;
   };
 
-
   const handleNavigate = (item: string) => {
+    markTabVisited(item);
     if (onNavigate) {
       onNavigate(item);
     } else {
@@ -316,8 +371,12 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
                   className="flex items-center gap-2.5 p-1.5 pl-2 pr-3 bg-white/80 hover:bg-white border border-[#E6DFD3] rounded-xl transition-all shadow-sm group cursor-pointer"
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#18181b] to-[#27272a] text-white font-bold text-xs flex items-center justify-center border border-[#E6DFD3] shadow-inner shrink-0">
-                    {userData?.name ? userData.name[0].toUpperCase() : 'S'}
+                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-[#18181b] to-[#27272a] text-white font-bold text-xs flex items-center justify-center border border-[#E6DFD3] shadow-inner shrink-0">
+                    {userData?.profilePic ? (
+                      <img src={userData.profilePic} alt={userData.name || 'User'} className="w-full h-full object-cover" />
+                    ) : (
+                      userData?.name ? userData.name[0].toUpperCase() : 'S'
+                    )}
                   </div>
                   <div className="hidden md:flex flex-col text-left">
                     <span className="text-xs font-bold text-slate-800 leading-tight max-w-[120px] truncate">
@@ -435,11 +494,19 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
               <div className="flex items-center space-x-1 sm:space-x-1.5 bg-white/75 sm:bg-white/40 backdrop-blur-xl border border-white/80 shadow-2xl rounded-full px-3 sm:px-4 py-1.5 sm:py-2 pointer-events-auto transition-all overflow-visible max-w-full">
                 {menuItems.map((item) => {
                   const isActive = activeItem === item.name;
+                  const badgeKey = TAB_BADGE_MAP[item.name];
+                  const badgeCount = badgeKey ? (tabBadges[badgeKey] || 0) : 0;
+
                   return (
                     <div key={item.name} className="relative group shrink-0">
                       {/* Tooltip */}
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-bold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-200 whitespace-nowrap shadow-lg">
                         {item.name}
+                        {badgeCount > 0 && !isActive && (
+                          <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.2 text-[9px] text-white">
+                            {badgeCount}
+                          </span>
+                        )}
                       </div>
 
                       <button
@@ -452,6 +519,11 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
                           }`}
                       >
                         {item.icon}
+                        {badgeCount > 0 && !isActive && (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white shadow-sm ring-2 ring-white animate-pulse">
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
                       </button>
                     </div>
                   );
@@ -592,14 +664,18 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
                 {/* Profile & Dropdown */}
                 <div className="relative">
                   <div
-                    className={`w-9 h-9 rounded-lg text-white flex items-center justify-center font-bold text-xs cursor-pointer transition-all ${
+                    className={`w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center font-bold text-xs cursor-pointer transition-all ${
                       role === 'ALUMNI' 
-                        ? 'bg-blue-600 hover:bg-blue-700 shadow-md'
-                        : 'bg-[#0b1525] hover:bg-[#16325c] shadow-sm'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+                        : 'bg-[#0b1525] hover:bg-[#16325c] text-white shadow-sm'
                     }`}
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                   >
-                    {userData?.name ? userData.name[0] : (role === 'ALUMNI' ? 'A' : 'S')}
+                    {userData?.profilePic ? (
+                      <img src={userData.profilePic} alt={userData.name || 'Profile'} className="w-full h-full object-cover" />
+                    ) : (
+                      userData?.name ? userData.name[0].toUpperCase() : (role === 'ALUMNI' ? 'A' : 'S')
+                    )}
                   </div>
 
                   {/* Dropdown Menu */}

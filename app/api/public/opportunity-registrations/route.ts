@@ -43,6 +43,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Opportunity not found' }, { status: 404, headers: corsHeaders });
     }
 
+    // Check for existing duplicate registration
+    const existingCheck = await pool.query(
+      `SELECT id FROM "OpportunityRegistration"
+       WHERE "postType" = $1 AND "postId" = $2 AND (LOWER("email") = LOWER($3) OR "phoneNo" = $4)
+       LIMIT 1`,
+      [normalizedPostType, postId, email.trim(), phoneNo.trim()]
+    );
+
+    if (existingCheck.rows.length > 0) {
+      return NextResponse.json(
+        { error: 'You have already registered for this opportunity with this email or phone number.' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const result = await pool.query(
       `INSERT INTO "OpportunityRegistration"
         ("postType", "postId", "alumniId", "name", "email", "phoneNo", "linkedInUrl")
