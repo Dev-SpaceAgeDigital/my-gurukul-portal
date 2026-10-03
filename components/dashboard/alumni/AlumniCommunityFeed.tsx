@@ -20,6 +20,15 @@ import {
   Trophy,
   UserPlus,
   Send,
+  Video,
+  School,
+  Calendar,
+  Repeat,
+  Layers,
+  Globe,
+  Users,
+  MapPin,
+  Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreatePostSubmenu from './CreatePostSubmenu';
@@ -38,6 +47,15 @@ interface FeedItem {
   batchYear?: string | number | null;
   profilePic?: string | null;
   schoolName?: string | null;
+  format?: string | null;
+  deliveryMode?: string | null;
+  meetingLink?: string | null;
+  sessionDate?: string | null;
+  sessionTime?: string | null;
+  frequency?: string | null;
+  category?: string | null;
+  targetStudent?: string | null;
+  availability?: string | null;
   likeCount?: number;
   viewCount?: number;
   userLiked?: boolean;
@@ -389,7 +407,7 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                 const isLiked = likes[item.id] ?? Boolean(item.userLiked);
                 const currentLikes = likeCounts[item.id] ?? (item.likeCount || 0);
                 const currentViews = viewCounts[item.id] ?? (item.viewCount || 0);
-                const isOpportunity = item.itemType === 'job' || item.itemType === 'internship';
+                const isOpportunity = item.itemType === 'job' || item.itemType === 'internship' || item.itemType === 'mentorship';
                 const interested = interestedState[item.id];
                 const expanded = Boolean(expandedItems[item.id]);
                 const preview = getPreviewText(item.content, expanded);
@@ -440,12 +458,82 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                             <button
                               type="button"
                               onClick={() => toggleExpanded(item.id)}
-                              className="text-[12px] font-black text-blue-600 hover:text-blue-700"
+                              className="text-[12px] font-black text-blue-600 hover:text-blue-700 cursor-pointer"
                             >
                               {expanded ? 'Show less' : 'Read more'}
                             </button>
                           )}
                         </div>
+
+                        {/* Mentorship Structured Details Box */}
+                        {item.itemType === 'mentorship' && (
+                          <div className="mt-3 space-y-2.5 rounded-2xl bg-indigo-50/60 p-3 sm:p-4 border border-indigo-100 text-xs">
+                            <div className="flex flex-wrap items-center gap-1.5 font-bold">
+                              {item.format && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 text-[10.5px]">
+                                  <Layers size={12} /> {item.format}
+                                </span>
+                              )}
+                              {item.deliveryMode && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 text-[10.5px]">
+                                  {item.deliveryMode === 'AT_CAMPUS' ? <School size={12} /> : <Video size={12} />}
+                                  {item.deliveryMode === 'AT_CAMPUS' ? 'At School Campus' : 'Online Virtual'}
+                                </span>
+                              )}
+                              {item.frequency && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10.5px]">
+                                  <Repeat size={12} /> {item.frequency}
+                                </span>
+                              )}
+                            </div>
+
+                            {(item.sessionDate || item.sessionTime || item.targetStudent) && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-indigo-100/70 text-[11px] text-slate-700">
+                                {(item.sessionDate || item.sessionTime) && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar size={13} className="text-indigo-600 shrink-0" />
+                                    <span>
+                                      <strong>Schedule:</strong> {[item.sessionDate ? new Date(item.sessionDate).toLocaleDateString() : null, item.sessionTime].filter(Boolean).join(' @ ')}
+                                    </span>
+                                  </div>
+                                )}
+                                {item.targetStudent && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Users size={13} className="text-indigo-600 shrink-0" />
+                                    <span className="truncate">
+                                      <strong>Target:</strong> {item.targetStudent}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {item.meetingLink && (
+                              <div className="pt-2 border-t border-indigo-100/70 flex items-center gap-2 text-[11.5px] font-semibold text-indigo-950 bg-white/90 p-2.5 rounded-xl">
+                                {item.deliveryMode === 'AT_CAMPUS' ? (
+                                  <School size={14} className="text-amber-600 shrink-0" />
+                                ) : (
+                                  <Globe size={14} className="text-blue-600 shrink-0" />
+                                )}
+                                <span className="font-bold text-[10.5px] uppercase tracking-wider text-slate-500 shrink-0">
+                                  {item.deliveryMode === 'AT_CAMPUS' ? 'Venue:' : 'Meeting Link:'}
+                                </span>
+                                {item.meetingLink.startsWith('http') ? (
+                                  <a
+                                    href={item.meetingLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline break-all truncate font-bold font-mono"
+                                  >
+                                    {item.meetingLink}
+                                  </a>
+                                ) : (
+                                  <span className="font-bold text-slate-800 break-all">{item.meetingLink}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {item.mediaUrl && (
                           <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-100 sm:mt-4">
@@ -465,7 +553,7 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                                   title: item.title,
                                   postType: item.itemType === 'mentorship' ? 'MENTORSHIP' : 'CAREER',
                                   authorName: item.alumniName,
-                                  subtitle: item.badge,
+                                  subtitle: item.itemType === 'mentorship' ? `${item.format || 'Mentorship'} • ${item.category || ''}` : item.badge,
                                 })}
                                 className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3 text-xs font-extrabold shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
                               >

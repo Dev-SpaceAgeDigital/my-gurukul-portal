@@ -133,6 +133,7 @@ export async function GET(req: Request) {
           SELECT 
             LOWER(co.type) as "itemType", co.id, co.role as "title", co.description as "content", 
             CONCAT(co."companyName", ' (', co.type, ')') as "badge", NULL as "mediaUrl", co."createdAt",
+            co.location, co."workMode", co.salary, co.duration, co."experienceLevel", co."applyLink", co.deadline, co.category,
             a.name as "alumniName", a."currentTitle", a."batchYear", a."profilePic", a.id as "alumniId", a.email as "alumniEmail",
             s."schoolName"
           FROM "CareerOpportunity" co
@@ -146,7 +147,9 @@ export async function GET(req: Request) {
         pool.query(`
           SELECT 
             'mentorship' as "itemType", mo.id, mo.title, mo.description as "content", 
-            CONCAT('Mentorship · ', mo."targetStudent") as "badge", NULL as "mediaUrl", mo."createdAt",
+            CONCAT('Mentorship · ', COALESCE(mo.format, 'Workshop/Session')) as "badge", NULL as "mediaUrl", mo."createdAt",
+            mo.format, mo."deliveryMode", mo."meetingLink", mo."sessionDate", mo."sessionTime", mo.frequency,
+            mo.category, mo."targetStudent", mo.availability,
             a.name as "alumniName", a."currentTitle", a."batchYear", a."profilePic", a.id as "alumniId", a.email as "alumniEmail",
             s."schoolName"
           FROM "MentorshipOffer" mo
@@ -293,7 +296,9 @@ export async function GET(req: Request) {
         const res = await pool.query(`
           SELECT 
             'mentorship' as "itemType", mo.id, mo.title, mo.description as "content", 
-            CONCAT('Mentorship · ', mo."targetStudent") as "badge", NULL as "mediaUrl", mo."createdAt",
+            CONCAT('Mentorship · ', COALESCE(mo.format, 'Workshop/Session')) as "badge", NULL as "mediaUrl", mo."createdAt",
+            mo.format, mo."deliveryMode", mo."meetingLink", mo."sessionDate", mo."sessionTime", mo.frequency,
+            mo.category, mo."targetStudent", mo.availability,
             a.name as "alumniName", a."currentTitle", a."batchYear", a."profilePic", a.id as "alumniId", a.email as "alumniEmail",
             s."schoolName"
           FROM "MentorshipOffer" mo
