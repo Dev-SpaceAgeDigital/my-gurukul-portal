@@ -52,11 +52,34 @@ export async function GET(req: Request) {
       }
     }
 
+    const url = new URL(req.url);
+    const cookieHeader = req.headers.get('cookie') || '';
+    const cookiePortal = cookieHeader.match(/preferred_portal=([^;]+)/)?.[1];
+    const portal = url.searchParams.get('portal') || cookiePortal;
+
+    let appName = `${tenantName} Portal`;
+    let appShortName = shortName;
+    let startUrl = '/';
+
+    if (portal === 'alumni') {
+      appName = `${shortName} Alumni Portal`;
+      appShortName = 'Alumni App';
+      startUrl = '/alumni/login';
+    } else if (portal === 'subadmin') {
+      appName = `${shortName} School Admin`;
+      appShortName = 'School App';
+      startUrl = '/subadmin/login';
+    } else if (portal === 'superadmin') {
+      appName = `${shortName} SuperAdmin`;
+      appShortName = 'SuperAdmin';
+      startUrl = '/superadmin/login';
+    }
+
     const manifestData = {
-      name: `${tenantName} Portal`,
-      short_name: shortName,
+      name: appName,
+      short_name: appShortName,
       description: `${tenantName} Institutional, Alumni & Governance System`,
-      start_url: '/',
+      start_url: startUrl,
       scope: '/',
       display: 'standalone',
       orientation: 'portrait-primary',

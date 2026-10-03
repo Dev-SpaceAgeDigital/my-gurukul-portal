@@ -36,11 +36,29 @@ export default function Home() {
       .then((authData) => {
         if (authData?.role === 'ALUMNI') {
           window.location.replace('/alumni/dashboard');
+          return;
         } else if (authData?.role === 'SUB_ADMIN') {
           window.location.replace('/subadmin/dashboard');
+          return;
         } else if (authData?.role === 'SUPER_ADMIN') {
           window.location.replace('/superadmin/dashboard');
+          return;
         }
+
+        // If not logged in, but launching from installed PWA standalone app
+        try {
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+          const preferred = localStorage.getItem('preferred_portal');
+          if (isStandalone && preferred) {
+            if (preferred === 'alumni') {
+              window.location.replace('/alumni/login');
+            } else if (preferred === 'subadmin') {
+              window.location.replace('/subadmin/login');
+            } else if (preferred === 'superadmin') {
+              window.location.replace('/superadmin/login');
+            }
+          }
+        } catch {}
       })
       .catch(() => {});
 

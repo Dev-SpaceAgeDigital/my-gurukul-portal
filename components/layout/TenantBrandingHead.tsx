@@ -90,14 +90,30 @@ function applyBranding(tenant: TenantData, path: string) {
     pageTitle = `${tenantName} - Institutional Portal`;
   }
 
-  document.title = pageTitle;
+  // Determine portal scope for PWA manifest & smart launcher
+  let portalParam = '';
+  if (path.startsWith('/alumni')) {
+    portalParam = 'alumni';
+  } else if (path.startsWith('/subadmin')) {
+    portalParam = 'subadmin';
+  } else if (path.startsWith('/superadmin')) {
+    portalParam = 'superadmin';
+  }
+
+  if (portalParam) {
+    try {
+      document.cookie = `preferred_portal=${portalParam}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      localStorage.setItem('preferred_portal', portalParam);
+    } catch {}
+  }
 
   // Update Favicons and Manifest dynamically
   if (logoUrl) {
     updateLinkTag('icon', logoUrl);
     updateLinkTag('shortcut icon', logoUrl);
     updateLinkTag('apple-touch-icon', logoUrl);
-    updateLinkTag('manifest', '/manifest.json');
+    const manifestHref = portalParam ? `/manifest.json?portal=${portalParam}` : '/manifest.json';
+    updateLinkTag('manifest', manifestHref);
   }
 }
 

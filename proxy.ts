@@ -14,6 +14,9 @@ export async function proxy(request: NextRequest) {
   const superadminToken = request.cookies.get('superadmin-session')?.value;
   const subadminToken = request.cookies.get('subadmin-session')?.value;
   const alumniToken = request.cookies.get('alumni-token')?.value;
+  const preferredPortal = request.cookies.get('preferred_portal')?.value;
+  const portalParam = request.nextUrl.searchParams.get('portal');
+  const activePortal = portalParam || preferredPortal;
 
   // 1. Handle Root Path '/' (PWA App Launcher & Direct Visits)
   if (pathname === '/') {
@@ -45,6 +48,15 @@ export async function proxy(request: NextRequest) {
           return NextResponse.redirect(new URL('/superadmin/dashboard', request.url));
         }
       } catch {}
+    }
+
+    // If not logged in, but user installed or requested specific portal (e.g. Alumni App)
+    if (activePortal === 'alumni') {
+      return NextResponse.redirect(new URL('/alumni/login', request.url));
+    } else if (activePortal === 'subadmin') {
+      return NextResponse.redirect(new URL('/subadmin/login', request.url));
+    } else if (activePortal === 'superadmin') {
+      return NextResponse.redirect(new URL('/superadmin/login', request.url));
     }
 
     return NextResponse.next();
