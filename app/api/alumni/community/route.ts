@@ -128,7 +128,7 @@ export async function GET(req: Request) {
       const [achievementsRes, storiesRes, newsRes, careersRes, mentorshipsRes] = await Promise.all([
         pool.query(`
           SELECT 
-            'achievement' as "itemType", ac.id, ac.title, ac.description as "content", ac.category as "badge", ac."mediaUrl", ac."createdAt",
+            'achievement' as "itemType", ac.id, ac.title, ac.description as "content", ac.category as "badge", ac."mediaUrl", ac."proofType" as "mediaType", ac."createdAt",
             a.name as "alumniName", a."currentTitle", a."batchYear", a."profilePic", a.id as "alumniId", a.email as "alumniEmail",
             s."schoolName"
           FROM "Achievement" ac
@@ -141,7 +141,7 @@ export async function GET(req: Request) {
 
         pool.query(`
           SELECT 
-            'story' as "itemType", b.id, b.title, b.content, 'Story / Blog' as "badge", b."mediaUrl", b."createdAt",
+            'story' as "itemType", b.id, b.title, b.content, 'Story / Blog' as "badge", b."mediaUrl", b."mediaType", b."createdAt",
             a.name as "alumniName", a."currentTitle", a."batchYear", a."profilePic", a.id as "alumniId", a.email as "alumniEmail",
             s."schoolName"
           FROM "Blog" b

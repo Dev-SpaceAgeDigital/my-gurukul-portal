@@ -44,6 +44,7 @@ interface FeedItem {
   content: string;
   badge?: string;
   mediaUrl?: string | null;
+  mediaType?: string | null;
   createdAt: string;
   alumniName: string;
   currentTitle?: string | null;
@@ -576,6 +577,7 @@ export default function AlumniCommunityFeed({ onOpenCreateModal }: AlumniCommuni
                         {item.mediaUrl && (
                           <AlumniMediaGallery
                             mediaUrl={item.mediaUrl}
+                            mediaType={item.mediaType}
                             title={item.title}
                           />
                         )}
