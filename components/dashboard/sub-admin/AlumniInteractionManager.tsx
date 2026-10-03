@@ -24,7 +24,11 @@ import {
   Building2,
   Globe,
   Tag,
-  Tags
+  Tags,
+  Video,
+  School,
+  Layers,
+  Repeat
 } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
 
@@ -53,6 +57,12 @@ interface Interaction {
   referralCount?: number;
   targetStudent?: string | null;
   availability?: string | null;
+  format?: string | null;
+  deliveryMode?: string | null;
+  meetingLink?: string | null;
+  sessionDate?: string | null;
+  sessionTime?: string | null;
+  frequency?: string | null;
   status: ModerationStatus;
   isFeatured?: boolean;
   alumniName: string;
@@ -559,9 +569,20 @@ export default function AlumniInteractionManager() {
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${activeTab === 'achievement' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-[#a98f4a] border-amber-100'}`}>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${activeTab === 'achievement' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : activeTab === 'mentorship' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-[#a98f4a] border-amber-100'}`}>
                             {getTypeLabel(item)}
                           </span>
+                          {activeTab === 'mentorship' && item.format && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200 flex items-center gap-1">
+                              <Layers size={10} /> {item.format}
+                            </span>
+                          )}
+                          {activeTab === 'mentorship' && item.deliveryMode && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
+                              {item.deliveryMode === 'AT_CAMPUS' ? <School size={10} /> : <Video size={10} />}
+                              {item.deliveryMode === 'AT_CAMPUS' ? 'In-Person Campus' : 'Online Virtual'}
+                            </span>
+                          )}
                           {activeTab === 'job' && item.workMode && (
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200">
                               {item.workMode === 'REMOTE' ? '🏠 Remote' : item.workMode === 'HYBRID' ? '🌐 Hybrid' : '🏢 On-Site'}
@@ -699,23 +720,68 @@ export default function AlumniInteractionManager() {
                         </div>
                       )}
 
-                      {/* Mentorship Details */}
+                      {/* Mentorship Full Details */}
                       {activeTab === 'mentorship' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="flex items-start space-x-3">
-                            <Users size={14} className="text-[#dac48b] mt-0.5 shrink-0" />
-                            <div className="space-y-0.5">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Target Students</p>
-                              <p className="text-xs font-semibold text-slate-700">{item.targetStudent || 'Not specified'}</p>
+                        <div className="space-y-3 bg-white p-4 rounded-md border border-slate-200/80">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                            {item.format && (
+                              <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                                <Layers size={14} className="text-purple-600 shrink-0" />
+                                <span>Format: <strong className="text-slate-900">{item.format}</strong></span>
+                              </div>
+                            )}
+                            {item.category && (
+                              <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                                <Tags size={14} className="text-indigo-600 shrink-0" />
+                                <span>Domain: <strong className="text-slate-900">{item.category}</strong></span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                              <Users size={14} className="text-blue-600 shrink-0" />
+                              <span>Target: <strong className="text-slate-900">{item.targetStudent || 'Open to All'}</strong></span>
                             </div>
-                          </div>
-                          <div className="flex items-start space-x-3">
-                            <Clock size={14} className="text-[#dac48b] mt-0.5 shrink-0" />
-                            <div className="space-y-0.5">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Availability</p>
-                              <p className="text-xs font-semibold text-slate-700">{item.availability || 'Not specified'}</p>
+                            <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                              {item.deliveryMode === 'AT_CAMPUS' ? (
+                                <School size={14} className="text-amber-600 shrink-0" />
+                              ) : (
+                                <Video size={14} className="text-blue-600 shrink-0" />
+                              )}
+                              <span>Mode: <strong className="text-slate-900">{item.deliveryMode === 'AT_CAMPUS' ? 'In-Person (At Campus)' : item.deliveryMode === 'HYBRID' ? 'Hybrid' : 'Online Virtual'}</strong></span>
                             </div>
+                            {item.frequency && (
+                              <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                                <Repeat size={14} className="text-emerald-600 shrink-0" />
+                                <span>Frequency: <strong className="text-slate-900">{item.frequency}</strong></span>
+                              </div>
+                            )}
+                            {(item.sessionDate || item.sessionTime) && (
+                              <div className="flex items-center space-x-2 text-slate-700 font-semibold">
+                                <Calendar size={14} className="text-teal-600 shrink-0" />
+                                <span>Schedule: <strong className="text-slate-900">{[item.sessionDate ? new Date(item.sessionDate).toLocaleDateString() : null, item.sessionTime].filter(Boolean).join(' @ ')}</strong></span>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Meeting Link or Campus Location */}
+                          {item.meetingLink && (
+                            <div className="pt-2 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold bg-indigo-50/50 p-2.5 rounded-md text-indigo-900">
+                              {item.deliveryMode === 'AT_CAMPUS' ? (
+                                <School size={14} className="shrink-0 text-amber-600" />
+                              ) : (
+                                <Globe size={14} className="shrink-0 text-blue-600" />
+                              )}
+                              <span className="font-bold text-[11px] uppercase tracking-wider text-slate-600">
+                                {item.deliveryMode === 'AT_CAMPUS' ? 'Venue / Room Preference:' : 'Meeting Link:'}
+                              </span>
+                              {item.meetingLink.startsWith('http') ? (
+                                <a href={item.meetingLink} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 hover:underline break-all truncate font-bold">
+                                  {item.meetingLink}
+                                </a>
+                              ) : (
+                                <span className="font-bold text-slate-800">{item.meetingLink}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -227,6 +227,12 @@ export const mentorshipOffers = pgTable('MentorshipOffer', {
   targetStudent: text('targetStudent'),
   availability: text('availability'),
   category: varchar('category', { length: 100 }),
+  format: varchar('format', { length: 100 }),
+  deliveryMode: varchar('deliveryMode', { length: 50 }).default('ONLINE'),
+  meetingLink: text('meetingLink'),
+  sessionDate: varchar('sessionDate', { length: 50 }),
+  sessionTime: varchar('sessionTime', { length: 50 }),
+  frequency: varchar('frequency', { length: 50 }).default('1-Time Session'),
   status: varchar('status', { length: 20 }).default('PENDING'), // PENDING, APPROVED, REJECTED
   createdAt: timestamp('createdAt').defaultNow(),
   updatedAt: timestamp('updatedAt').defaultNow(),

@@ -236,6 +236,12 @@ export async function ensureMasterAdminSchema() {
         "expiresAt" TIMESTAMPTZ NOT NULL,
         "createdAt" TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "format" VARCHAR(100);
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "deliveryMode" VARCHAR(50) DEFAULT 'ONLINE';
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "meetingLink" TEXT;
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "sessionDate" VARCHAR(50);
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "sessionTime" VARCHAR(50);
+      ALTER TABLE "MentorshipOffer" ADD COLUMN IF NOT EXISTS "frequency" VARCHAR(50) DEFAULT '1-Time Session';
     `);
   } catch (err) {
     console.warn('[ensureMasterAdminSchema] 80G and OTP schema init warning:', err);

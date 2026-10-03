@@ -6,8 +6,11 @@ import { createNotification } from '@/lib/notifications';
 import { logActivity } from '@/lib/monitoring';
 import { desc, eq } from 'drizzle-orm';
 
+import { ensureCareerTables } from '@/lib/ensureCareerTables';
+
 export async function GET(request: Request) {
   try {
+    await ensureCareerTables();
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -32,10 +35,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await ensureCareerTables();
     const session = await getSessionFromCookies('ALUMNI');
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { title, description, targetStudent, availability, category } = await request.json();
+    const {
+      title,
+      description,
+      targetStudent,
+      availability,
+      category,
+      format,
+      deliveryMode,
+      meetingLink,
+      sessionDate,
+      sessionTime,
+      frequency
+    } = await request.json();
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -53,14 +69,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Institutional record not found' }, { status: 404 });
     }
 
+    // Build human-readable availability string if empty
+    const computedAvailability = availability || [
+      frequency,
+      sessionDate ? `Date: ${sessionDate}` : null,
+      sessionTime ? `Time: ${sessionTime}` : null,
+    ].filter(Boolean).join(' | ') || 'Flexible Scheduling';
+
     const [newOffer] = await db.insert(mentorshipOffers).values({
       alumniId: session.userId,
       schoolId,
       title,
       description,
-      targetStudent,
-      availability,
-      category,
+      targetStudent: targetStudent || 'Open to All Students & Alumni',
+      availability: computedAvailability,
+      category: category || 'Engineering & Tech',
+      format: format || 'Group Workshop / Webinar',
+      deliveryMode: deliveryMode || 'ONLINE',
+      meetingLink: meetingLink || null,
+      sessionDate: sessionDate || null,
+      sessionTime: sessionTime || null,
+      frequency: frequency || '1-Time Session',
       status: 'PENDING'
     }).returning();
 

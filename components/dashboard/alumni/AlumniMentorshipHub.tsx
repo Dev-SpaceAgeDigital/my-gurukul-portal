@@ -8,7 +8,6 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  GraduationCap,
   Calendar,
   Info,
   Loader2,
@@ -16,11 +15,18 @@ import {
   UserCheck,
   Tags,
   Handshake,
-  Send
+  Send,
+  Video,
+  MapPin,
+  Globe,
+  Layers,
+  Repeat,
+  Sparkles,
+  School
 } from 'lucide-react';
 import RegisterOpportunityModal from './RegisterOpportunityModal';
 
-const PROFESSIONAL_CATEGORIES = [
+export const PROFESSIONAL_CATEGORIES = [
   "Engineering & Tech",
   "Business & Finance",
   "Healthcare & Medicine",
@@ -28,7 +34,40 @@ const PROFESSIONAL_CATEGORIES = [
   "Law & Public Policy",
   "Education & Academics",
   "Sales & Marketing",
+  "Civil Services & Govt Exams",
+  "Entrepreneurship & Startups",
   "General / Other"
+];
+
+export const SESSION_FORMATS = [
+  "Group Workshop / Webinar",
+  "1-on-1 Mentorship",
+  "Resume Review & Mock Interview",
+  "Competitive Exam & College Guidance",
+  "Guest Lecture / Campus Visit",
+  "Panel Discussion / AMA"
+];
+
+export const TARGET_MENTEES = [
+  "Current School Students (Class 9 - 10)",
+  "Senior Secondary Students (Class 11 - 12)",
+  "College Students & Fresh Graduates",
+  "Junior Alumni & Career Switchers",
+  "Open to All Students & Alumni"
+];
+
+export const DELIVERY_MODES = [
+  { value: 'ONLINE', label: '🌐 Online (Virtual Video Call / Meet / Zoom)' },
+  { value: 'AT_CAMPUS', label: '🏫 In-Person (At School Campus)' },
+  { value: 'HYBRID', label: '🔄 Hybrid (Online + Campus Visit)' }
+];
+
+export const FREQUENCY_OPTIONS = [
+  "1-Time Session / Workshop",
+  "Every Week",
+  "Every 2 Weeks (Bi-Weekly)",
+  "Every Month",
+  "Flexible / On-Demand Schedule"
 ];
 
 interface MentorshipPost {
@@ -38,6 +77,12 @@ interface MentorshipPost {
   targetStudent: string | null;
   availability: string | null;
   category: string | null;
+  format?: string | null;
+  deliveryMode?: string | null;
+  meetingLink?: string | null;
+  sessionDate?: string | null;
+  sessionTime?: string | null;
+  frequency?: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
 }
@@ -54,13 +99,20 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
   useEffect(() => {
     if (autoOpenForm) setShowForm(true);
   }, [autoOpenForm]);
+
   const [formData, setFormData] = useState({
     title: '',
+    category: 'Engineering & Tech',
+    format: 'Group Workshop / Webinar',
+    targetStudent: 'Open to All Students & Alumni',
+    deliveryMode: 'ONLINE',
+    meetingLink: '',
+    sessionDate: '',
+    sessionTime: '',
+    frequency: '1-Time Session / Workshop',
     description: '',
-    targetStudent: '',
-    availability: '',
-    category: 'Engineering & Tech'
   });
+
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPost, setSelectedPost] = useState<MentorshipPost | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -80,7 +132,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
     try {
       const res = await fetch('/api/alumni/mentorship');
       const data = await res.json();
-      if (res.ok) setPosts(data);
+      if (res.ok && Array.isArray(data)) setPosts(data);
     } catch (err) {
       console.error('Failed to fetch mentorship posts');
     } finally {
@@ -99,7 +151,18 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
       });
       if (res.ok) {
         setShowForm(false);
-        setFormData({ title: '', description: '', targetStudent: '', availability: '', category: 'Engineering & Tech' });
+        setFormData({
+          title: '',
+          category: 'Engineering & Tech',
+          format: 'Group Workshop / Webinar',
+          targetStudent: 'Open to All Students & Alumni',
+          deliveryMode: 'ONLINE',
+          meetingLink: '',
+          sessionDate: '',
+          sessionTime: '',
+          frequency: '1-Time Session / Workshop',
+          description: '',
+        });
         fetchPosts();
       }
     } catch (err) {
@@ -112,11 +175,11 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'APPROVED':
-        return <span className="flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100/60 uppercase tracking-wider shadow-sm"><CheckCircle2 size={12} className="mr-1.5" /> Approved</span>;
+        return <span className="flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100/60 uppercase tracking-wider shadow-xs"><CheckCircle2 size={12} className="mr-1.5" /> Approved</span>;
       case 'REJECTED':
-        return <span className="flex items-center text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100/60 uppercase tracking-wider shadow-sm"><XCircle size={12} className="mr-1.5" /> Rejected</span>;
+        return <span className="flex items-center text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100/60 uppercase tracking-wider shadow-xs"><XCircle size={12} className="mr-1.5" /> Rejected</span>;
       default:
-        return <span className="flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/60 uppercase tracking-wider shadow-sm"><Clock size={12} className="mr-1.5" /> Pending review</span>;
+        return <span className="flex items-center text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/60 uppercase tracking-wider shadow-xs"><Clock size={12} className="mr-1.5" /> Pending review</span>;
     }
   };
 
@@ -146,8 +209,13 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                   <h3 className="text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug truncate">{selectedPost.title}</h3>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Mentorship Offer
+                      Mentorship Session
                     </span>
+                    {selectedPost.format && (
+                      <span className="px-2.5 py-0.5 bg-purple-50 border border-purple-200/80 text-purple-700 font-bold rounded-md text-[10px] flex items-center gap-1">
+                        <Layers size={10} /> {selectedPost.format}
+                      </span>
+                    )}
                     {selectedPost.category && (
                       <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100/80 text-indigo-600 font-bold rounded-md text-[10px]">
                         {selectedPost.category}
@@ -162,15 +230,61 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
             </div>
             
             <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 relative z-10">
-              {/* Description Section */}
+              {/* Description & Details Section */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
-                <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-                  <div className="flex items-center text-[10px] sm:text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
-                    <Info size={14} className="mr-1.5 shrink-0" />
-                    <span>Mentorship Objective & Description</span>
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center text-[10px] sm:text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
+                      <Info size={14} className="mr-1.5 shrink-0" />
+                      <span>Mentorship Agenda & Session Details</span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-medium text-slate-700 leading-relaxed bg-white/80 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/90 shadow-xs whitespace-pre-wrap">
+                      {selectedPost.description}
+                    </div>
                   </div>
-                  <div className="text-xs sm:text-sm font-medium text-slate-700 leading-relaxed bg-white/80 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/90 shadow-xs">
-                    {selectedPost.description}
+
+                  {/* Delivery & Link Info Banner */}
+                  <div className="bg-gradient-to-br from-indigo-50/80 to-blue-50/80 p-4 sm:p-5 rounded-2xl border border-indigo-100/80 shadow-xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-black text-indigo-900 uppercase tracking-wide">
+                        {selectedPost.deliveryMode === 'AT_CAMPUS' ? (
+                          <><School size={16} className="text-amber-600" /> In-Person Campus Session</>
+                        ) : selectedPost.deliveryMode === 'HYBRID' ? (
+                          <><Globe size={16} className="text-indigo-600" /> Hybrid Session</>
+                        ) : (
+                          <><Video size={16} className="text-blue-600" /> Online Virtual Session</>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white text-indigo-700 border border-indigo-200 uppercase">
+                        {selectedPost.frequency || '1-Time Session'}
+                      </span>
+                    </div>
+
+                    {selectedPost.meetingLink ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white/90 p-3 rounded-xl border border-indigo-100 text-xs">
+                        <span className="font-bold text-slate-600 text-[11px] uppercase tracking-wider shrink-0">
+                          {selectedPost.deliveryMode === 'AT_CAMPUS' ? '🏫 Campus Venue:' : '🔗 Meeting URL:'}
+                        </span>
+                        {selectedPost.meetingLink.startsWith('http') ? (
+                          <a
+                            href={selectedPost.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-blue-600 hover:underline break-all truncate font-semibold"
+                          >
+                            {selectedPost.meetingLink}
+                          </a>
+                        ) : (
+                          <span className="font-bold text-slate-800 break-all">{selectedPost.meetingLink}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-slate-500 italic bg-white/60 p-2.5 rounded-xl border border-indigo-100/60">
+                        {selectedPost.deliveryMode === 'AT_CAMPUS'
+                          ? 'Campus venue coordinates will be allocated by school administration upon approval.'
+                          : 'Meeting video link will be generated or communicated once session is confirmed.'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -182,19 +296,42 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                     <div className="space-y-3">
                       <div>
                         <div className="flex items-center text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          <Users size={12} className="mr-1.5" /> Target Mentees
+                          <Layers size={12} className="mr-1.5 text-purple-600" /> Session Format
                         </div>
                         <p className="text-xs font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
-                          {selectedPost.targetStudent || 'Open to all students'}
+                          {selectedPost.format || 'Group Workshop / Webinar'}
                         </p>
                       </div>
 
                       <div>
                         <div className="flex items-center text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          <Calendar size={12} className="mr-1.5" /> Availability
+                          <Users size={12} className="mr-1.5 text-blue-600" /> Target Mentees
                         </div>
                         <p className="text-xs font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
-                          {selectedPost.availability || 'Flexible Scheduling'}
+                          {selectedPost.targetStudent || 'Open to All Students & Alumni'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          <Calendar size={12} className="mr-1.5 text-emerald-600" /> Session Date & Time
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <span>{selectedPost.sessionDate ? new Date(selectedPost.sessionDate).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Flexible Date'}</span>
+                          {selectedPost.sessionTime && (
+                            <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                              {selectedPost.sessionTime}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          <Repeat size={12} className="mr-1.5 text-amber-600" /> Frequency
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                          {selectedPost.frequency || '1-Time Session / Workshop'}
                         </p>
                       </div>
                     </div>
@@ -237,7 +374,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/40 backdrop-blur-md p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-white/60 shadow-sm">
               <div>
                 <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight">Your Mentorship Offers</h3>
-                <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Manage and offer student guidance sessions</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Offer webinars, workshops, 1-on-1 guidance, or campus lectures</p>
               </div>
               <button
                 onClick={() => setShowForm(true)}
@@ -270,90 +407,219 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
             </div>
           )}
 
+          {/* Creation Form */}
           {showForm && (
-            <div className="bg-white/40 backdrop-blur-md rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] border border-white/60 shadow-xl shadow-slate-900/5 overflow-hidden animate-in zoom-in-95 duration-300 relative">
+            <div className="bg-white/50 backdrop-blur-md rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] border border-white/70 shadow-xl shadow-slate-900/5 overflow-hidden animate-in zoom-in-95 duration-300 relative">
               <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/5 blur-[60px] rounded-full pointer-events-none"></div>
               
-              <div className="p-4 sm:p-6 md:p-10 border-b border-white/40 bg-white/30">
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900">Program Design</h3>
-                <p className="text-[10px] sm:text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Define your mentorship goals and availability</p>
+              <div className="p-4 sm:p-6 md:p-10 border-b border-white/50 bg-white/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                      <Sparkles size={18} />
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-extrabold text-slate-900">Create Mentorship Program</h3>
+                  </div>
+                  <p className="text-[11px] sm:text-xs font-medium text-slate-500 mt-1">Design student webinars, 1-on-1 sessions, and campus masterclasses</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="self-end sm:self-auto text-xs font-bold text-slate-400 hover:text-slate-700 bg-white/60 px-3 py-1.5 rounded-xl border border-slate-200"
+                >
+                  Cancel
+                </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-8 relative z-10">
-                <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Mentorship Title / Expertise Area</label>
+
+              <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-10 space-y-5 sm:space-y-7 relative z-10">
+                {/* Title */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                    Mentorship Title / Expertise Area <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Career Guidance for Engineers"
-                    value={formData.title ?? ''}
+                    placeholder="e.g. AI Workshop for Beginners, Career Guidance for Engineers, NEET/JEE Strategy..."
+                    value={formData.title}
                     onChange={e => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3.5 py-2.5 sm:px-6 sm:py-4 bg-white/50 border border-slate-200/80 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold sm:font-bold text-slate-800 placeholder:text-slate-400 transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 placeholder:text-slate-400 transition-all"
                   />
                 </div>
 
-                <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Profession Category</label>
-                  <select 
-                    value={formData.category ?? 'Engineering & Tech'}
-                    onChange={e => setFormData({...formData, category: e.target.value})}
-                    className="w-full px-3.5 py-2.5 sm:px-6 sm:py-4 bg-white/50 border border-slate-200/80 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
-                  >
-                     {PROFESSIONAL_CATEGORIES.map(cat => (
-                       <option key={cat} value={cat}>{cat}</option>
-                     ))}
-                  </select>
+                {/* Profession Category & Session Format Dropdowns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                      Profession Category <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={formData.category}
+                      onChange={e => setFormData({...formData, category: e.target.value})}
+                      className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    >
+                      {PROFESSIONAL_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                      Session Format <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={formData.format}
+                      onChange={e => setFormData({...formData, format: e.target.value})}
+                      className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    >
+                      {SESSION_FORMATS.map(fmt => (
+                        <option key={fmt} value={fmt}>{fmt}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="space-y-1 sm:space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Detailed Description</label>
+                {/* Target Mentees & Delivery Mode Dropdowns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                      Target Mentees / Eligibility <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={formData.targetStudent}
+                      onChange={e => setFormData({...formData, targetStudent: e.target.value})}
+                      className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    >
+                      {TARGET_MENTEES.map(tm => (
+                        <option key={tm} value={tm}>{tm}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                      Delivery Mode <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={formData.deliveryMode}
+                      onChange={e => setFormData({...formData, deliveryMode: e.target.value})}
+                      className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    >
+                      {DELIVERY_MODES.map(mode => (
+                        <option key={mode.value} value={mode.value}>{mode.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dynamic Meeting Link or Campus Venue Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                    {formData.deliveryMode === 'AT_CAMPUS' ? (
+                      <><School size={13} className="text-amber-600" /> Campus Location / Hall Preference</>
+                    ) : (
+                      <><Video size={13} className="text-blue-600" /> Online Meeting Link / Platform (Google Meet, Zoom, MS Teams)</>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={
+                      formData.deliveryMode === 'AT_CAMPUS'
+                        ? 'e.g. School Auditorium, Main Computer Lab, or To be coordinated by school'
+                        : 'e.g. https://meet.google.com/abc-defg-hij or Link will be shared with registered students'
+                    }
+                    value={formData.meetingLink}
+                    onChange={e => setFormData({ ...formData, meetingLink: e.target.value })}
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 ml-1">
+                    {formData.deliveryMode === 'AT_CAMPUS'
+                      ? 'Specify your preferred hall or campus room (subject to admin confirmation).'
+                      : 'You can paste your Google Meet/Zoom link here or share it later after admin approval.'}
+                  </p>
+                </div>
+
+                {/* Schedule & Frequency */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100/70 space-y-4">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900 uppercase tracking-wider">
+                    <Calendar size={14} className="text-indigo-600" />
+                    <span>Session Schedule & Recurrence</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                        Session Date
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.sessionDate}
+                        onChange={e => setFormData({ ...formData, sessionDate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs font-bold text-slate-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                        Session Time
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.sessionTime}
+                        onChange={e => setFormData({ ...formData, sessionTime: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs font-bold text-slate-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                        Frequency
+                      </label>
+                      <select 
+                        value={formData.frequency}
+                        onChange={e => setFormData({...formData, frequency: e.target.value})}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs font-bold text-slate-800 cursor-pointer"
+                      >
+                        {FREQUENCY_OPTIONS.map(freq => (
+                          <option key={freq} value={freq}>{freq}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Session Details / Agenda */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">
+                    Session Details & Learning Outcomes <span className="text-rose-500">*</span>
+                  </label>
                   <textarea
                     rows={4}
                     required
-                    placeholder="What will you teach? What can students expect..."
-                    value={formData.description ?? ''}
+                    placeholder="Describe what students will learn, agenda of the session, prerequisites or topics to be covered..."
+                    value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 sm:px-6 sm:py-4 bg-white/50 border border-slate-200/80 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold sm:font-bold text-slate-800 placeholder:text-slate-400 transition-all resize-none"
+                    className="w-full px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-white/80 border border-slate-200/90 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 transition-all resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-8">
-                  <div className="space-y-1 sm:space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Target Mentees / Eligibility</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Standard 10 Students with math interest..."
-                      value={formData.targetStudent ?? ''}
-                      onChange={e => setFormData({ ...formData, targetStudent: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:px-6 sm:py-4 bg-white/50 border border-slate-200/80 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold sm:font-bold text-slate-800 placeholder:text-slate-400 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1 sm:space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider ml-1">Visit / Session Availability</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Weekends, Monthly visits..."
-                      value={formData.availability ?? ''}
-                      onChange={e => setFormData({ ...formData, availability: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:px-6 sm:py-4 bg-white/50 border border-slate-200/80 rounded-xl sm:rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white text-xs sm:text-sm font-semibold sm:font-bold text-slate-800 placeholder:text-slate-400 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-end gap-2.5 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-100/50">
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row justify-end gap-2.5 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-100/70">
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="w-full sm:w-auto px-6 py-2.5 sm:px-8 sm:py-3.5 bg-white/60 text-slate-600 border border-slate-200/60 rounded-xl sm:rounded-2xl font-bold text-xs hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                    className="w-full sm:w-auto px-6 py-2.5 sm:px-8 sm:py-3.5 bg-white/80 text-slate-600 border border-slate-200/80 rounded-xl sm:rounded-2xl font-bold text-xs hover:bg-slate-50 hover:text-slate-900 transition-all shadow-xs"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full sm:w-auto flex items-center justify-center px-6 py-2.5 sm:px-10 sm:py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl font-bold text-xs shadow-md shadow-indigo-500/10 hover:shadow-lg hover:shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50"
+                    className="w-full sm:w-auto flex items-center justify-center px-6 py-2.5 sm:px-10 sm:py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl sm:rounded-2xl font-bold text-xs shadow-md shadow-indigo-500/10 hover:shadow-lg hover:shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {submitting ? <Loader2 className="animate-spin mr-2" size={16} /> : <UserCheck size={16} className="mr-2" />}
-                    Submit Offer
+                    Submit Mentorship Offer
                   </button>
                 </div>
               </form>
@@ -361,7 +627,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
           )}
 
           {/* Posts List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             {loading ? (
               <div className="lg:col-span-2 py-32 flex flex-col items-center justify-center bg-white/40 backdrop-blur-md rounded-[2rem] border border-white/60 shadow-sm">
                 <Loader2 className="animate-spin text-indigo-600 mb-4" size={40} />
@@ -373,7 +639,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                   <Handshake size={32} />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800">No Mentorship Offers Added Yet</h3>
-                <p className="text-slate-500 text-xs font-medium mt-1.5 max-w-sm mx-auto">Become a beacon of guidance for Madni students and junior alumni.</p>
+                <p className="text-slate-500 text-xs font-medium mt-1.5 max-w-sm mx-auto">Become a beacon of guidance for students and junior alumni through workshops and 1-on-1 sessions.</p>
                 <button
                   onClick={() => setShowForm(true)}
                   className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-extrabold px-5 py-2.5 rounded-2xl shadow-md inline-flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02] mt-5"
@@ -391,8 +657,8 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                 <p className="text-slate-500 text-sm font-medium mt-2">Try selecting a different filter.</p>
               </div>
             ) : posts.filter(post => selectedCategory === 'All' || post.category === selectedCategory).map(post => (
-              <div key={post.id} className="bg-white/60 backdrop-blur-md rounded-2xl sm:rounded-3xl md:rounded-[2rem] border border-white/80 shadow-lg shadow-slate-900/5 hover:shadow-xl transition-all duration-300 overflow-hidden group relative">
-                 <div className="absolute -top-10 -left-10 w-32 h-32 bg-indigo-500/5 blur-[40px] rounded-full pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+              <div key={post.id} className="bg-white/60 backdrop-blur-md rounded-2xl sm:rounded-3xl md:rounded-[2rem] border border-white/80 shadow-lg shadow-slate-900/5 hover:shadow-xl transition-all duration-300 overflow-hidden group relative flex flex-col justify-between">
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-indigo-500/5 blur-[40px] rounded-full pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
                  
                 <div className="p-4 sm:p-6 md:p-8 relative z-10 space-y-4 sm:space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -402,14 +668,22 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug group-hover:text-indigo-600 transition-colors tracking-tight truncate">{post.title}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                          Mentorship Program
-                        </p>
-                        {post.category && (
-                          <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-white/90 border border-slate-200/80 rounded-lg text-[10px] font-bold text-slate-600 uppercase tracking-wider shadow-xs">
-                             {post.category}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="px-2 py-0.5 bg-purple-50 border border-purple-200/80 rounded-md text-[10px] font-black text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                            <Layers size={10} /> {post.format || 'Mentorship'}
                           </span>
-                        )}
+                          {post.deliveryMode && (
+                            <span className="px-2 py-0.5 bg-blue-50 border border-blue-200/80 rounded-md text-[10px] font-black text-blue-700 uppercase tracking-wider flex items-center gap-1">
+                              {post.deliveryMode === 'AT_CAMPUS' ? <School size={10} /> : <Video size={10} />}
+                              {post.deliveryMode === 'AT_CAMPUS' ? 'At Campus' : 'Online'}
+                            </span>
+                          )}
+                          {post.category && (
+                            <span className="px-2 py-0.5 bg-white/90 border border-slate-200/80 rounded-md text-[10px] font-bold text-slate-600 uppercase tracking-wider shadow-xs">
+                              {post.category}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="self-start sm:self-auto shrink-0">
@@ -419,21 +693,25 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
 
                   <p className="text-xs font-medium text-slate-600 leading-relaxed line-clamp-3">{post.description}</p>
 
-                  <div className="grid grid-cols-2 gap-3 bg-white/80 p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-xs">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3 bg-white/80 p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-xs text-xs">
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Group</div>
-                      <p className="text-xs font-bold text-slate-800 truncate">{post.targetStudent || 'General'}</p>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Target Group</div>
+                      <p className="font-bold text-slate-800 truncate">{post.targetStudent || 'All Students & Alumni'}</p>
                     </div>
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Availability</div>
-                      <p className="text-xs font-bold text-slate-800 truncate">{post.availability || 'TBD'}</p>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Frequency & Schedule</div>
+                      <p className="font-bold text-slate-800 truncate">
+                        {post.frequency || (post.sessionDate ? `${new Date(post.sessionDate).toLocaleDateString()}` : post.availability || 'Flexible')}
+                      </p>
                     </div>
                   </div>
+                </div>
 
+                <div className="p-4 sm:p-6 pt-0 relative z-10">
                   <div className="pt-3 sm:pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       <Calendar size={13} className="mr-1.5 shrink-0 text-slate-400" />
-                      <span>Offered on {new Date(post.createdAt).toLocaleDateString()}</span>
+                      <span>{post.sessionDate ? `Session: ${new Date(post.sessionDate).toLocaleDateString()}` : `Offered on ${new Date(post.createdAt).toLocaleDateString()}`}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <button 
@@ -442,7 +720,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                           id: post.id,
                           title: post.title,
                           postType: 'MENTORSHIP',
-                          subtitle: post.category || 'Mentorship Program',
+                          subtitle: `${post.format || 'Mentorship'} • ${post.category || ''}`,
                         })}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-1 h-8 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all text-[10px] font-bold uppercase tracking-wider shadow-xs cursor-pointer active:scale-95"
                       >
@@ -453,7 +731,7 @@ export default function AlumniMentorshipHub({ autoOpenForm }: AlumniMentorshipHu
                         onClick={() => setSelectedPost(post)}
                         className="flex-1 sm:flex-initial flex items-center justify-center h-8 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer active:scale-95"
                       >
-                        Manage <ChevronRight size={13} className="ml-0.5" />
+                        Details <ChevronRight size={13} className="ml-0.5" />
                       </button>
                       <Link
                         href={`/alumni/registrations?postType=MENTORSHIP&postId=${post.id}`}

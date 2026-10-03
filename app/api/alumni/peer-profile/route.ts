@@ -57,7 +57,9 @@ export async function GET(request: Request) {
     // 3. Fetch APPROVED Mentorship Offers
     const mentorshipsRes = await pool.query(
       `SELECT 
-        m.id, m.title, m.description, m."targetStudent", m.availability, m.category, m."createdAt",
+        m.id, m.title, m.description, m."targetStudent", m.availability, m.category,
+        m.format, m."deliveryMode", m."meetingLink", m."sessionDate", m."sessionTime", m.frequency,
+        m."createdAt",
         COALESCE((SELECT COUNT(*)::int FROM "OpportunityRegistration" opr WHERE opr."postId" = m.id AND opr."postType" = 'MENTORSHIP'), 0) as "registrationCount"
        FROM "MentorshipOffer" m
        WHERE m."alumniId" = $1 AND m.status = 'APPROVED'
