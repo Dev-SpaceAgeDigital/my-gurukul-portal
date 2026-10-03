@@ -124,7 +124,6 @@ export async function POST(request: Request) {
       audiences: [
         { type: 'ROLE', recipientRole: 'SUPER_ADMIN' },
         { type: 'SCHOOL_ROLE', recipientRole: 'SUB_ADMIN', schoolId },
-        { type: 'SCHOOL_ALUMNI', schoolId },
       ],
     });
 
