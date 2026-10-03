@@ -58,16 +58,20 @@ export async function ensureAlumniOnboardingTables() {
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "apaarId" varchar(100)');
   await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "udiseNo" varchar(100)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ADD COLUMN IF NOT EXISTS "passwordHash" varchar(255)');
+  await pool.query('ALTER TABLE "AlumniRegistrationRequest" ALTER COLUMN email DROP NOT NULL');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "phone" varchar(50)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "countryCode" varchar(10)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "mobileNumber" varchar(50)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "apaarId" varchar(100)');
   await pool.query('ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "udiseNo" varchar(100)');
+  await pool.query('ALTER TABLE "Alumni" ALTER COLUMN email DROP NOT NULL');
 
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_token_idx" ON "AlumniInvite" (token)');
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniInvite_school_idx" ON "AlumniInvite" ("schoolId", status, "createdAt" DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS "AlumniRegistrationRequest_school_idx" ON "AlumniRegistrationRequest" ("schoolId", status, "createdAt" DESC)');
-  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS "AlumniRegistrationRequest_pending_email_idx" ON "AlumniRegistrationRequest" (LOWER(email)) WHERE status = \'PENDING\'');
+  await pool.query('CREATE INDEX IF NOT EXISTS "AlumniRegistrationRequest_mobile_idx" ON "AlumniRegistrationRequest" ("mobileNumber", "schoolId")');
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS "AlumniRegistrationRequest_pending_email_idx" ON "AlumniRegistrationRequest" (LOWER(email)) WHERE status = \'PENDING\' AND email IS NOT NULL');
 
   ensured = true;
 }
@@ -200,13 +204,42 @@ export async function sendAlumniCredentialsEmail({
 
 
 export async function createApprovedAlumniFromRequest(registration: any, request?: Request) {
-  const password = createTemporaryPassword();
-  const hashedPassword = await hashPassword(password);
-  const email = String(registration.email).trim().toLowerCase();
+  let password = '';
+  let hashedPassword = '';
+  const isSelfSetPassword = Boolean(registration.passwordHash);
 
-  const existing = await pool.query('SELECT id FROM "Alumni" WHERE email = $1 LIMIT 1', [email]);
-  if (existing.rows[0]) {
-    throw new Error('Alumni account already exists for this email');
+  if (isSelfSetPassword) {
+    hashedPassword = registration.passwordHash;
+    password = '(Set by alumnus during registration)';
+  } else {
+    password = createTemporaryPassword();
+    hashedPassword = await hashPassword(password);
+  }
+
+  const email = registration.email ? String(registration.email).trim().toLowerCase() : null;
+  const rawMobile = String(registration.mobileNumber || registration.phone || '').trim();
+  const digitsOnly = rawMobile.replace(/\D/g, '');
+  const last10Digits = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+  // Check if alumni account already exists for this email or phone
+  if (email && email.includes('@')) {
+    const existing = await pool.query('SELECT id FROM "Alumni" WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
+    if (existing.rows[0]) {
+      throw new Error('Alumni account already exists for this email address');
+    }
+  }
+
+  if (last10Digits.length >= 10) {
+    const existingPhone = await pool.query(
+      `SELECT id FROM "Alumni"
+       WHERE (REGEXP_REPLACE(COALESCE(phone, ''), '\\D', 'g') LIKE $1
+          OR REGEXP_REPLACE(COALESCE("mobileNumber", ''), '\\D', 'g') LIKE $1)
+       LIMIT 1`,
+      [`%${last10Digits}`]
+    );
+    if (existingPhone.rows[0]) {
+      throw new Error('Alumni account already exists for this phone number');
+    }
   }
 
   const alumniRes = await pool.query(
@@ -216,7 +249,7 @@ export async function createApprovedAlumniFromRequest(registration: any, request
     RETURNING *`,
     [
       registration.name,
-      email,
+      email || null,
       hashedPassword,
       registration.batchYear || 'Unknown',
       registration.currentTitle || null,
@@ -231,30 +264,37 @@ export async function createApprovedAlumniFromRequest(registration: any, request
     ]
   );
 
-  const emailSent = await sendAlumniCredentialsEmail({
-    to: email,
-    schoolId: registration.schoolId,
-    name: registration.name,
-    schoolName: registration.schoolName || 'Institution Trust',
-    batchYear: registration.batchYear,
+  let emailSent = false;
+  if (email && email.includes('@')) {
+    emailSent = await sendAlumniCredentialsEmail({
+      to: email,
+      schoolId: registration.schoolId,
+      name: registration.name,
+      schoolName: registration.schoolName || 'Institution Trust',
+      batchYear: registration.batchYear,
+      password: isSelfSetPassword ? 'Your chosen password at registration' : password,
+      request,
+    });
+
+    await logEmail({
+      schoolId: registration.schoolId,
+      alumniId: alumniRes.rows[0].id,
+      recipientEmail: email,
+      recipientRole: 'ALUMNI',
+      sourceRole: 'SUB_ADMIN',
+      emailType: 'ALUMNI_INVITE_APPROVED_CREDENTIALS',
+      subject: `Your ${registration.schoolName || 'Institution'} Alumni Portal Credentials`,
+      status: emailSent ? 'SENT' : (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY ? 'FAILED' : 'SKIPPED'),
+      relatedEntityType: 'AlumniRegistrationRequest',
+      relatedEntityId: registration.id,
+      errorMessage: emailSent ? null : 'Credentials email was not sent',
+    });
+  }
+
+  return {
+    alumni: alumniRes.rows[0],
     password,
-    request,
-  });
-
-
-  await logEmail({
-    schoolId: registration.schoolId,
-    alumniId: alumniRes.rows[0].id,
-    recipientEmail: email,
-    recipientRole: 'ALUMNI',
-    sourceRole: 'SUB_ADMIN',
-    emailType: 'ALUMNI_INVITE_APPROVED_CREDENTIALS',
-    subject: `Your ${registration.schoolName || 'Madni'} Alumni Portal Credentials`,
-    status: emailSent ? 'SENT' : (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY ? 'FAILED' : 'SKIPPED'),
-    relatedEntityType: 'AlumniRegistrationRequest',
-    relatedEntityId: registration.id,
-    errorMessage: emailSent ? null : 'Credentials email was not sent',
-  });
-
-  return { alumni: alumniRes.rows[0], password, emailSent };
+    isSelfSetPassword,
+    emailSent,
+  };
 }

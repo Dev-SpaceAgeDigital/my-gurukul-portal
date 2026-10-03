@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, ExternalLink, Loader2, MessageCircle, Send, ShieldCheck, X, XCircle } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
 
 type RegistrationRequest = {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
   batchYear?: string | null;
   apaarId?: string | null;
@@ -19,11 +19,22 @@ type RegistrationRequest = {
   createdAt: string;
 };
 
+interface ApprovedModalData {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  password?: string;
+  isSelfSetPassword?: boolean;
+  emailSent?: boolean;
+}
+
 export default function AlumniRegistrationRequests() {
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [status, setStatus] = useState('PENDING');
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [approvedData, setApprovedData] = useState<ApprovedModalData | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
   const { dialog, showAlert, confirmDialog } = usePortalDialog();
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -56,7 +67,7 @@ export default function AlumniRegistrationRequests() {
     if (action === 'APPROVE') {
       const ok = await confirmDialog({
         title: 'Approve alumni request?',
-        message: `This will create an alumni account for ${request.name} and email login credentials.`,
+        message: `This will activate the alumni account for ${request.name} and grant portal access.`,
         confirmText: 'Approve',
         variant: 'success',
       });
@@ -73,18 +84,58 @@ export default function AlumniRegistrationRequests() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Unable to review request');
       setRequests((current) => current.filter((item) => item.id !== request.id));
-      showAlert({
-        title: action === 'APPROVE' ? 'Alumni approved' : 'Request rejected',
-        message: action === 'APPROVE'
-          ? `Credentials ${data.emailSent ? 'were emailed' : 'were generated, but email was not sent'}.`
-          : 'The request has been rejected.',
-        variant: action === 'APPROVE' ? 'success' : 'info',
-      });
+
+      if (action === 'APPROVE') {
+        setApprovedData({
+          name: request.name,
+          phone: request.phone || data.alumni?.phone || data.alumni?.mobileNumber,
+          email: request.email || data.alumni?.email,
+          password: data.password,
+          isSelfSetPassword: Boolean(data.isSelfSetPassword),
+          emailSent: Boolean(data.emailSent),
+        });
+      } else {
+        showAlert({
+          title: 'Request rejected',
+          message: 'The registration request has been rejected.',
+          variant: 'info',
+        });
+      }
     } catch (error: any) {
       showAlert({ title: 'Action failed', message: error?.message || 'Please try again.', variant: 'danger' });
     } finally {
       setSavingId(null);
     }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!approvedData || typeof window === 'undefined') return;
+    const digits = (approvedData.phone || '').replace(/\D/g, '');
+    const phoneWithCountry = digits.startsWith('91') ? digits : `91${digits.slice(-10)}`;
+    const loginUrl = `${window.location.origin}/alumni/login`;
+    
+    let message = `Hello ${approvedData.name}, your alumni profile has been approved! 🎓\n\nYou can now log in to the Alumni Portal:\n🌐 Link: ${loginUrl}\n📱 Mobile: ${approvedData.phone || ''}`;
+    if (!approvedData.isSelfSetPassword && approvedData.password) {
+      message += `\n🔑 Temporary Password: ${approvedData.password}`;
+    } else {
+      message += `\n🔑 Password: (Use the password you chose during registration)`;
+    }
+
+    window.open(`https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleCopyCreds = () => {
+    if (!approvedData || typeof window === 'undefined') return;
+    const loginUrl = `${window.location.origin}/alumni/login`;
+    let text = `Alumni Login Credentials\nName: ${approvedData.name}\nLogin URL: ${loginUrl}\nIdentifier: ${approvedData.phone || approvedData.email}`;
+    if (!approvedData.isSelfSetPassword && approvedData.password) {
+      text += `\nPassword: ${approvedData.password}`;
+    } else {
+      text += `\nPassword: (Chosen during registration)`;
+    }
+    navigator.clipboard.writeText(text);
+    setCopiedCreds(true);
+    setTimeout(() => setCopiedCreds(false), 2500);
   };
 
   return (
@@ -185,6 +236,88 @@ export default function AlumniRegistrationRequests() {
           )}
         </div>
       </div>
+
+      {/* Approval Success & WhatsApp Share Modal */}
+      {approvedData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-[#12343a] to-[#1A6B5A] p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
+                  <ShieldCheck className="text-emerald-300" size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-white">Alumnus Account Approved</h4>
+                  <p className="text-[11px] text-emerald-100 font-medium">Account is now active for login</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setApprovedData(null)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs font-semibold text-slate-700">
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
+                  <span className="text-slate-500">Alumnus Name:</span>
+                  <span className="font-bold text-slate-900">{approvedData.name}</span>
+                </div>
+                {approvedData.phone && (
+                  <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
+                    <span className="text-slate-500">Mobile / Login ID:</span>
+                    <span className="font-mono font-bold text-emerald-700">{approvedData.phone}</span>
+                  </div>
+                )}
+                {approvedData.email && (
+                  <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
+                    <span className="text-slate-500">Email Address:</span>
+                    <span className="font-bold text-slate-900">{approvedData.email}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500">Password Status:</span>
+                  <span className="font-mono font-bold text-[#1A6B5A]">
+                    {approvedData.isSelfSetPassword ? '✓ Self-Set during Registration' : approvedData.password || 'Generated'}
+                  </span>
+                </div>
+              </div>
+
+              {approvedData.emailSent ? (
+                <p className="text-[11px] font-medium text-emerald-600 flex items-center gap-1.5">
+                  <Check size={13} /> Automated credentials email was delivered to {approvedData.email}.
+                </p>
+              ) : (
+                <p className="text-[11px] font-medium text-slate-500">
+                  {approvedData.phone ? 'You can send credentials directly to the alumnus via WhatsApp below.' : 'No email provided. Share credentials manually.'}
+                </p>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                {approvedData.phone && (
+                  <button
+                    onClick={handleShareWhatsApp}
+                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    <MessageCircle size={15} />
+                    <span>Share on WhatsApp</span>
+                  </button>
+                )}
+                <button
+                  onClick={handleCopyCreds}
+                  className="py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  {copiedCreds ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                  <span>{copiedCreds ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {dialog}
     </>
   );

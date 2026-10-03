@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { ensureAlumniOnboardingTables } from '@/lib/alumniOnboarding';
+import { hashPassword } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { logActivity } from '@/lib/monitoring';
 import { checkRateLimit, rateLimitResponse } from '@/lib/security/rateLimit';
@@ -70,19 +71,52 @@ export async function POST(req: Request) {
 
     await ensureAlumniOnboardingTables();
     const body = await req.json();
+
+    // 1. Anti-Bot Honeypot Trap (Drops automated AI scrapers & spam bots)
+    const honeypot = String(body.website_trap || body.bot_trap || body._hp_check || '').trim();
+    if (honeypot) {
+      return NextResponse.json({
+        success: true,
+        message: 'Your registration request has been submitted successfully and is pending school verification.',
+      }, { headers: publicHeaders });
+    }
+
     const token = String(body.token || '').trim();
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const countryCode = String(body.countryCode || '+91').trim();
     const rawPhone = String(body.phone || body.mobileNumber || '').trim();
+    const rawDigits = rawPhone.replace(/\D/g, '');
+    const last10Digits = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
     const batchYear = String(body.batchYear || '').trim();
     const currentTitle = String(body.currentTitle || '').trim();
     const currentBio = String(body.currentBio || '').trim();
     const linkedIn = String(body.linkedIn || '').trim();
+    const password = String(body.password || '').trim();
     let schoolId = String(body.schoolId || '').trim();
 
-    if (!name || !email.includes('@')) {
-      return NextResponse.json({ error: 'Full name and a valid email address are required' }, { status: 400, headers: publicHeaders });
+    if (!name) {
+      return NextResponse.json({ error: 'Full name is required' }, { status: 400, headers: publicHeaders });
+    }
+
+    if (!email && !rawPhone) {
+      return NextResponse.json({ error: 'Please provide either a Mobile Number or an Email address' }, { status: 400, headers: publicHeaders });
+    }
+
+    if (email && !email.includes('@')) {
+      return NextResponse.json({ error: 'Please provide a valid email address' }, { status: 400, headers: publicHeaders });
+    }
+
+    if (rawPhone && rawDigits.length < 10) {
+      return NextResponse.json({ error: 'Please enter a valid 10-digit mobile number' }, { status: 400, headers: publicHeaders });
+    }
+
+    let passwordHash: string | null = null;
+    if (password) {
+      if (password.length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters long' }, { status: 400, headers: publicHeaders });
+      }
+      passwordHash = await hashPassword(password);
     }
 
     let inviteId: string | null = null;
@@ -122,15 +156,44 @@ export async function POST(req: Request) {
     }
 
     // Check if alumni already exists for this email
-    const existingAlumni = await pool.query('SELECT id FROM "Alumni" WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
-    if (existingAlumni.rows[0]) {
-      return NextResponse.json({ error: 'You are already registered in the Alumni Directory. Please login directly.' }, { status: 400, headers: publicHeaders });
+    if (email && email.includes('@')) {
+      const existingAlumni = await pool.query('SELECT id FROM "Alumni" WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
+      if (existingAlumni.rows[0]) {
+        return NextResponse.json({ error: 'You are already registered in the Alumni Directory. Please login directly.' }, { status: 400, headers: publicHeaders });
+      }
+
+      // Check if duplicate pending registration exists for email
+      const duplicatePending = await pool.query('SELECT id FROM "AlumniRegistrationRequest" WHERE LOWER(email) = LOWER($1) AND status = $2 LIMIT 1', [email, 'PENDING']);
+      if (duplicatePending.rows[0]) {
+        return NextResponse.json({ error: 'Your registration request has already been submitted and is pending school approval.' }, { status: 400, headers: publicHeaders });
+      }
     }
 
-    // Check if duplicate pending registration exists
-    const duplicatePending = await pool.query('SELECT id FROM "AlumniRegistrationRequest" WHERE LOWER(email) = LOWER($1) AND status = $2 LIMIT 1', [email, 'PENDING']);
-    if (duplicatePending.rows[0]) {
-      return NextResponse.json({ error: 'Your registration request has already been submitted and is pending school approval.' }, { status: 400, headers: publicHeaders });
+    // Check if duplicate pending or registered exists for phone
+    if (last10Digits.length >= 10) {
+      const existingPhone = await pool.query(
+        `SELECT id FROM "Alumni"
+         WHERE "schoolId" = $1 AND (
+           REGEXP_REPLACE(COALESCE(phone, ''), '\\D', 'g') LIKE $2
+           OR REGEXP_REPLACE(COALESCE("mobileNumber", ''), '\\D', 'g') LIKE $2
+         ) LIMIT 1`,
+        [schoolId, `%${last10Digits}`]
+      );
+      if (existingPhone.rows[0]) {
+        return NextResponse.json({ error: 'This mobile number is already registered in the Alumni Directory. Please login directly.' }, { status: 400, headers: publicHeaders });
+      }
+
+      const duplicatePhonePending = await pool.query(
+        `SELECT id FROM "AlumniRegistrationRequest"
+         WHERE "schoolId" = $1 AND status = 'PENDING' AND (
+           REGEXP_REPLACE(COALESCE(phone, ''), '\\D', 'g') LIKE $2
+           OR REGEXP_REPLACE(COALESCE("mobileNumber", ''), '\\D', 'g') LIKE $2
+         ) LIMIT 1`,
+        [schoolId, `%${last10Digits}`]
+      );
+      if (duplicatePhonePending.rows[0]) {
+        return NextResponse.json({ error: 'A registration request with this mobile number is already pending school approval.' }, { status: 400, headers: publicHeaders });
+      }
     }
 
     const apaarId = String(body.apaarId || '').trim();
@@ -141,16 +204,16 @@ export async function POST(req: Request) {
     const result = await pool.query(
       `INSERT INTO "AlumniRegistrationRequest" (
         "inviteId", "schoolId", "schoolName", name, email, phone, "countryCode", "mobileNumber", "batchYear",
-        "currentTitle", "currentBio", "linkedIn", "apaarId", "udiseNo", status
+        "currentTitle", "currentBio", "linkedIn", "apaarId", "udiseNo", "passwordHash", status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'PENDING')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'PENDING')
       RETURNING *`,
       [
         inviteId,
         schoolId,
         schoolName,
         name,
-        email,
+        email || null,
         fullPhone,
         countryCode,
         rawPhone || null,
@@ -160,6 +223,7 @@ export async function POST(req: Request) {
         linkedIn || null,
         apaarId || null,
         udiseNo || null,
+        passwordHash,
       ]
     );
 

@@ -21,7 +21,10 @@ import {
   Users,
   Fingerprint,
   Hash,
-  IdCard
+  IdCard,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { COUNTRY_CODES } from '@/lib/countryCodes';
 
@@ -45,6 +48,9 @@ const initialForm = {
   currentTitle: '',
   currentBio: '',
   linkedIn: '',
+  password: '',
+  confirmPassword: '',
+  website_trap: '',
 };
 
 function AlumniRegisterContent() {
@@ -128,6 +134,8 @@ function AlumniRegisterContent() {
     loadData();
   }, [token, schoolIdParam]);
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const updateField = (key: keyof typeof initialForm, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     if (key === 'schoolId') {
@@ -144,6 +152,22 @@ function AlumniRegisterContent() {
     if (!form.schoolId && !invite?.schoolId) {
       setStatus({ type: 'error', message: 'Please select the school you graduated from.' });
       return;
+    }
+
+    if (!form.email && !form.phone) {
+      setStatus({ type: 'error', message: 'Please provide either a Mobile Number or an Email address.' });
+      return;
+    }
+
+    if (form.password) {
+      if (form.password.length < 6) {
+        setStatus({ type: 'error', message: 'Password must be at least 6 characters long.' });
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setStatus({ type: 'error', message: 'Passwords do not match. Please re-enter.' });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -276,17 +300,17 @@ function AlumniRegisterContent() {
                 </span>
                 <h2 className="text-2xl font-extrabold text-[#0b1525] tracking-tight">Registration Submitted</h2>
                 <p className="text-xs font-semibold text-slate-600 leading-relaxed">
-                  Your alumni onboarding profile for <strong>{status.schoolName}</strong> has been submitted to institutional governance.
+                  Your alumni onboarding profile for <strong>{status.schoolName}</strong> has been submitted to school administration.
                 </p>
               </div>
 
               <div className="rounded-2xl bg-[#EBF2F7] border border-[#D0DFEB] p-4.5 text-left text-xs font-medium text-slate-700 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#0b1525]">
-                  <Mail size={15} className="text-[#3f72af]" />
-                  <span>Next Step: Credentials Dispatch</span>
+                  <ShieldCheck size={16} className="text-[#3f72af]" />
+                  <span>Next Step: School Verification</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Upon verification by the school administration, your temporary login password will be emailed to <strong className="text-slate-800">{form.email}</strong>.
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Upon verification by the school administration, your profile will be approved and you can log in directly with your <strong>Mobile Number / Email</strong> using the password you set.
                 </p>
               </div>
 
@@ -320,6 +344,18 @@ function AlumniRegisterContent() {
               {/* Form */}
               <form onSubmit={submitRegistration} className="space-y-4">
                 
+                {/* Anti-Bot Honeypot Trap - Invisible to humans */}
+                <div style={{ position: 'absolute', opacity: 0, zIndex: -1, pointerEvents: 'none', height: 0, overflow: 'hidden' }} aria-hidden="true">
+                  <input
+                    type="text"
+                    name="website_trap"
+                    value={form.website_trap}
+                    onChange={(e) => updateField('website_trap', e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                  />
+                </div>
+
                 {/* Target School Badge / Selector */}
                 {invite ? (
                   <div className="rounded-2xl bg-[#EBF2F7] border border-[#D0DFEB] p-3.5 flex items-center gap-3">
@@ -352,7 +388,7 @@ function AlumniRegisterContent() {
                   </div>
                 )}
 
-                {/* Name & Email Row */}
+                {/* Name & Phone Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center gap-1.5">
@@ -368,26 +404,11 @@ function AlumniRegisterContent() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center gap-1.5">
-                      <Mail size={13} className="text-[#3f72af]" /> Email Address <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => updateField('email', e.target.value)}
-                      disabled={Boolean(invite?.email)}
-                      required
-                      placeholder="name@example.com"
-                      className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400 disabled:bg-slate-100"
-                    />
-                  </div>
-                </div>
-
-                {/* Phone & Batch Year Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center gap-1.5">
-                      <Phone size={13} className="text-[#3f72af]" /> Phone Number
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Phone size={13} className="text-[#3f72af]" /> Mobile Number
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold lowercase">primary login</span>
                     </label>
                     <div className="h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus-within:bg-white focus-within:border-[#3f72af] focus-within:ring-4 focus-within:ring-[#3f72af]/20 transition-all flex items-center overflow-hidden">
                       <select
@@ -410,6 +431,26 @@ function AlumniRegisterContent() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Email & Batch Year Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Mail size={13} className="text-[#3f72af]" /> Email Address
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold lowercase">optional if phone added</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => updateField('email', e.target.value)}
+                      disabled={Boolean(invite?.email)}
+                      placeholder="name@example.com"
+                      className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400 disabled:bg-slate-100"
+                    />
+                  </div>
 
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center gap-1.5">
@@ -419,6 +460,49 @@ function AlumniRegisterContent() {
                       value={form.batchYear}
                       onChange={(e) => updateField('batchYear', e.target.value)}
                       placeholder="e.g. 2023 - 2024 or 2022"
+                      className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Create Password Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Lock size={13} className="text-[#3f72af]" /> Choose Password <span className="text-rose-500">*</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold lowercase">min 6 chars</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={(e) => updateField('password', e.target.value)}
+                        required
+                        placeholder="••••••••"
+                        className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 pr-10 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600 mb-1 flex items-center gap-1.5">
+                      <Lock size={13} className="text-[#3f72af]" /> Confirm Password <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.confirmPassword}
+                      onChange={(e) => updateField('confirmPassword', e.target.value)}
+                      required
+                      placeholder="••••••••"
                       className="w-full h-[42px] rounded-xl border border-[#D0DFEB] bg-slate-50/50 hover:bg-white focus:bg-white px-3.5 text-xs font-bold text-[#0b1525] outline-none focus:border-[#3f72af] focus:ring-4 focus:ring-[#3f72af]/20 transition-all placeholder:text-slate-400"
                     />
                   </div>
