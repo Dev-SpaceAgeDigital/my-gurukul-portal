@@ -2,35 +2,99 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const SESSION_SECRET_STR = process.env.SESSION_SECRET || 'e9a4f6d8b3c1274950f28e6a1c5d4b8e9f3a7c2d1b0e5f4a6c8d9b2e1f3a5c7d';
-const JWT_SECRET_STR = process.env.JWT_SECRET || 'c2b5e8a1d4f79c6b3e0a2d5f8c1b4e7a9d6f3b0c2e5a8d1f4b7c9e2a5d8f1c3b';
+const SESSION_SECRET_STR = process.env.SESSION_SECRET || 'default_super_secure_session_secret_32_characters_long_min';
+const JWT_SECRET_STR = process.env.JWT_SECRET || 'default_super_secure_jwt_secret_32_characters_long_min';
 
 const SESSION_SECRET = new TextEncoder().encode(SESSION_SECRET_STR);
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR);
 
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const superadminToken = request.cookies.get('superadmin-session')?.value;
+  const subadminToken = request.cookies.get('subadmin-session')?.value;
+  const alumniToken = request.cookies.get('alumni-token')?.value;
+
+  // 1. Handle Root Path '/' (PWA App Launcher & Direct Visits)
+  if (pathname === '/') {
+    // If Alumni is logged in, redirect straight to Alumni Dashboard
+    if (alumniToken) {
+      try {
+        const { payload } = await jwtVerify(alumniToken, JWT_SECRET);
+        if (payload.role === 'ALUMNI') {
+          return NextResponse.redirect(new URL('/alumni/dashboard', request.url));
+        }
+      } catch {}
+    }
+
+    // If SubAdmin is logged in, redirect straight to SubAdmin Dashboard
+    if (subadminToken) {
+      try {
+        const { payload } = await jwtVerify(subadminToken, SESSION_SECRET);
+        if (payload.role === 'SUB_ADMIN') {
+          return NextResponse.redirect(new URL('/subadmin/dashboard', request.url));
+        }
+      } catch {}
+    }
+
+    // If SuperAdmin is logged in, redirect straight to SuperAdmin Dashboard
+    if (superadminToken) {
+      try {
+        const { payload } = await jwtVerify(superadminToken, SESSION_SECRET);
+        if (payload.role === 'SUPER_ADMIN') {
+          return NextResponse.redirect(new URL('/superadmin/dashboard', request.url));
+        }
+      } catch {}
+    }
+
+    return NextResponse.next();
+  }
+
+  // 2. Redirect already-logged-in users visiting login pages
+  if (pathname === '/alumni/login' && alumniToken) {
+    try {
+      const { payload } = await jwtVerify(alumniToken, JWT_SECRET);
+      if (payload.role === 'ALUMNI') {
+        return NextResponse.redirect(new URL('/alumni/dashboard', request.url));
+      }
+    } catch {}
+  }
+
+  if (pathname === '/subadmin/login' && subadminToken) {
+    try {
+      const { payload } = await jwtVerify(subadminToken, SESSION_SECRET);
+      if (payload.role === 'SUB_ADMIN') {
+        return NextResponse.redirect(new URL('/subadmin/dashboard', request.url));
+      }
+    } catch {}
+  }
+
+  if (pathname === '/superadmin/login' && superadminToken) {
+    try {
+      const { payload } = await jwtVerify(superadminToken, SESSION_SECRET);
+      if (payload.role === 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL('/superadmin/dashboard', request.url));
+      }
+    } catch {}
+  }
 
   // Define paths that require authentication
   const isSuperAdminPath = pathname.startsWith('/superadmin') && !pathname.includes('/login') && !pathname.includes('/register');
   const isSubAdminPath = pathname.startsWith('/subadmin') && !pathname.includes('/login') && !pathname.includes('/register');
   const isAlumniPath = pathname.startsWith('/alumni') && !pathname.includes('/login') && !pathname.includes('/register');
 
-
-  // Skip middleware/proxy for non-protected paths
+  // Skip for non-protected paths
   if (!isSuperAdminPath && !isSubAdminPath && !isAlumniPath) {
     return NextResponse.next();
   }
 
-  // Handle Superadmin
+  // Handle Superadmin Protected Routes
   if (isSuperAdminPath) {
-    const sessionToken = request.cookies.get('superadmin-session')?.value;
-    if (!sessionToken) {
-        return NextResponse.redirect(new URL('/superadmin/login', request.url));
+    if (!superadminToken) {
+      return NextResponse.redirect(new URL('/superadmin/login', request.url));
     }
     try {
-      const { payload } = await jwtVerify(sessionToken, SESSION_SECRET);
+      const { payload } = await jwtVerify(superadminToken, SESSION_SECRET);
       if (payload.role !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/superadmin/login', request.url));
       }
@@ -40,14 +104,13 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Handle Subadmin
+  // Handle Subadmin Protected Routes
   if (isSubAdminPath) {
-    const sessionToken = request.cookies.get('subadmin-session')?.value;
-    if (!sessionToken) {
-        return NextResponse.redirect(new URL('/subadmin/login', request.url));
+    if (!subadminToken) {
+      return NextResponse.redirect(new URL('/subadmin/login', request.url));
     }
     try {
-      const { payload } = await jwtVerify(sessionToken, SESSION_SECRET);
+      const { payload } = await jwtVerify(subadminToken, SESSION_SECRET);
       if (payload.role !== 'SUB_ADMIN' || !payload.schoolId) {
         return NextResponse.redirect(new URL('/subadmin/login', request.url));
       }
@@ -57,10 +120,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Handle Alumni (JWT-based)
+  // Handle Alumni Protected Routes
   if (isAlumniPath) {
-    const alumniToken = request.cookies.get('alumni-token')?.value;
-
     if (!alumniToken) {
       return NextResponse.redirect(new URL('/alumni/login', request.url));
     }
@@ -80,5 +141,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/superadmin/:path*', '/subadmin/:path*', '/alumni/:path*'],
+  matcher: [
+    '/',
+    '/superadmin/:path*',
+    '/subadmin/:path*',
+    '/alumni/:path*',
+  ],
 };

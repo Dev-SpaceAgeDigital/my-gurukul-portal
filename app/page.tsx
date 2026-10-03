@@ -30,6 +30,20 @@ export default function Home() {
   });
 
   useEffect(() => {
+    // Check if user is already logged in (e.g. launching from PWA mobile app)
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((authData) => {
+        if (authData?.role === 'ALUMNI') {
+          window.location.replace('/alumni/dashboard');
+        } else if (authData?.role === 'SUB_ADMIN') {
+          window.location.replace('/subadmin/dashboard');
+        } else if (authData?.role === 'SUPER_ADMIN') {
+          window.location.replace('/superadmin/dashboard');
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/public/tenant-info')
       .then((res) => res.json())
       .then((data) => {

@@ -31,6 +31,7 @@ export default function AlumniLoginPage() {
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const router = useRouter();
   const { dialog, showAlert } = usePortalDialog();
 
@@ -67,7 +68,7 @@ export default function AlumniLoginPage() {
       const res = await fetch('/api/auth/login/alumni', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: activeTab === 'email' ? email : phone, password }),
+        body: JSON.stringify({ email: activeTab === 'email' ? email : phone, password, rememberMe }),
       });
 
       const data = await res.json();
@@ -101,7 +102,7 @@ export default function AlumniLoginPage() {
       const res = await fetch('/api/auth/2fa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole || 'ALUMNI', code: twoFactorCode }),
+        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole || 'ALUMNI', code: twoFactorCode, rememberMe }),
       });
 
       const data = await res.json();
@@ -125,7 +126,7 @@ export default function AlumniLoginPage() {
       const res = await fetch('/api/auth/verify-login-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole, otp }),
+        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole, otp, rememberMe }),
       });
 
       const data = await res.json();
@@ -476,8 +477,23 @@ export default function AlumniLoginPage() {
               </div>
             </div>
 
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center justify-between pt-1 px-1">
+              <label className="flex items-center space-x-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                />
+                <span className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+                  Remember me on this device <span className="text-[11px] text-blue-600 font-bold">(30 Days)</span>
+                </span>
+              </label>
+            </div>
+
             {/* Agreement Terms Checkbox */}
-            <div className="flex items-start space-x-2 pt-2 px-1">
+            <div className="flex items-start space-x-2 pt-1 px-1">
               <input
                 type="checkbox"
                 id="terms"

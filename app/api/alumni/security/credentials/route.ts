@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       }
 
       const hashedPassword = await hashPassword(newPassword);
-      updateQuery = `UPDATE "Alumni" SET password = $1, "updatedAt" = NOW() WHERE id = $2 RETURNING id`;
+      updateQuery = `UPDATE "Alumni" SET password = $1, "tokenVersion" = COALESCE("tokenVersion", 1) + 1, "updatedAt" = NOW() WHERE id = $2 RETURNING id, "tokenVersion"`;
       updateParams = [hashedPassword, alumni.id];
       auditField = 'PASSWORD';
       notificationDetail = `Account password successfully reset with 2FA step-up authorization.`;

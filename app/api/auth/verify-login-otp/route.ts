@@ -29,8 +29,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: verified.error }, { status: 401 });
     }
 
+    const rememberMe = body.rememberMe !== false; // defaults to true for 30-day session
+
     if (role === 'ALUMNI') {
-      const result = await query('SELECT id, email, "schoolId" FROM "Alumni" WHERE LOWER(email) = $1', [email]);
+      const result = await query('SELECT id, email, "schoolId", "tokenVersion" FROM "Alumni" WHERE LOWER(email) = $1', [email]);
       const alumni = result.rows[0];
       if (!alumni) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
@@ -39,10 +41,11 @@ export async function POST(request: Request) {
         role: 'ALUMNI',
         email: alumni.email,
         schoolId: alumni.schoolId,
-      });
-      await setSessionCookie(token, 'ALUMNI');
+        tokenVersion: alumni.tokenVersion ?? 1,
+      }, rememberMe);
+      await setSessionCookie(token, 'ALUMNI', rememberMe);
     } else {
-      const result = await query('SELECT id, email, role, "schoolId" FROM "User" WHERE LOWER(email) = $1 AND role = $2', [email, role]);
+      const result = await query('SELECT id, email, role, "schoolId", "tokenVersion" FROM "User" WHERE LOWER(email) = $1 AND role = $2', [email, role]);
       const user = result.rows[0];
       if (!user) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
@@ -51,8 +54,9 @@ export async function POST(request: Request) {
         role,
         email: user.email,
         schoolId: user.schoolId,
-      });
-      await setSessionCookie(token, role);
+        tokenVersion: user.tokenVersion ?? 1,
+      }, rememberMe);
+      await setSessionCookie(token, role, rememberMe);
     }
 
     return NextResponse.json({ success: true, redirectTo: redirectMap[role] });

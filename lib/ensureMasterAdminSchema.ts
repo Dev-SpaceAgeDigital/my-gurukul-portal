@@ -192,9 +192,11 @@ export async function ensureMasterAdminSchema() {
     console.warn('[ensureMasterAdminSchema] School table warning:', err);
   }
 
-  // 4. Ensure Alumni, Transaction & 80G Request Schema
+  // 4. Ensure Alumni, Transaction & 80G Request Schema & tokenVersion for Kill Switch
   try {
     await pool.query(`
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenVersion" integer DEFAULT 1;
+      ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "tokenVersion" integer DEFAULT 1;
       ALTER TABLE "Alumni" ADD COLUMN IF NOT EXISTS "panNo" varchar(20);
       ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "donorPan" varchar(20);
       CREATE TABLE IF NOT EXISTS "Donation80GRequest" (

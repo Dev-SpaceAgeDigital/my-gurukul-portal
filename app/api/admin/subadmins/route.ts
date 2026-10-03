@@ -106,7 +106,7 @@ export async function PUT(request: Request) {
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      updateQuery += `, password = $7 WHERE id = $8`;
+      updateQuery += `, password = $7, "tokenVersion" = COALESCE("tokenVersion", 1) + 1 WHERE id = $8`;
       params.push(hashedPassword, id);
     } else {
       updateQuery += ` WHERE id = $7`;

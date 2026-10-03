@@ -25,6 +25,7 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
   const [otp, setOtp] = useState('');
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [verifiedRole, setVerifiedRole] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const router = useRouter();
   const { dialog, showAlert } = usePortalDialog();
 
@@ -64,7 +65,7 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
       const res = await fetch(loginEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await res.json();
@@ -114,7 +115,7 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
       const res = await fetch('/api/auth/2fa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole || 'SUPER_ADMIN', code: twoFactorCode }),
+        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole || 'SUPER_ADMIN', code: twoFactorCode, rememberMe }),
       });
 
       const data = await res.json();
@@ -146,7 +147,7 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
       const res = await fetch('/api/auth/verify-login-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole, otp }),
+        body: JSON.stringify({ email: verifiedEmail, role: verifiedRole, otp, rememberMe }),
       });
 
       const data = await res.json();
@@ -403,11 +404,25 @@ export default function LoginForm({ roleName, loginEndpoint, accentColor, roleIc
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                         >
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Remember Me Toggle */}
+                    <div className="flex items-center justify-between pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                        />
+                        <span className="text-xs font-semibold text-slate-700">Remember me on this device</span>
+                      </label>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">30 Days</span>
                     </div>
                   </>
                 )}

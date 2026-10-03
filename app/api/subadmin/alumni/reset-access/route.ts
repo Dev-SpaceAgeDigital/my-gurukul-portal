@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const temporaryPassword = crypto.randomBytes(4).toString('hex');
     const hashedPassword = await hashPassword(temporaryPassword);
-    await query('UPDATE "Alumni" SET password = $1, "updatedAt" = NOW() WHERE id = $2', [hashedPassword, alumni.id]);
+    await query('UPDATE "Alumni" SET password = $1, "tokenVersion" = COALESCE("tokenVersion", 1) + 1, "updatedAt" = NOW() WHERE id = $2', [hashedPassword, alumni.id]);
 
     const schoolName = alumni.schoolName || 'School Administration';
     let emailSent = false;

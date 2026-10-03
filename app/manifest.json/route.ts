@@ -75,11 +75,28 @@ export async function GET(req: Request) {
           type: 'image/png',
           purpose: 'any',
         },
+      ],
+      shortcuts: [
         {
-          src: logoUrl,
-          sizes: '512x512',
-          type: 'image/png',
-          purpose: 'maskable',
+          name: `${shortName} Alumni Hub`,
+          short_name: 'Alumni',
+          description: 'Access Alumni Portal, Directory & Impact',
+          url: '/alumni/dashboard',
+          icons: [{ src: logoUrl, sizes: '192x192' }],
+        },
+        {
+          name: `${shortName} School Admin`,
+          short_name: 'School',
+          description: 'Access School Management Console',
+          url: '/subadmin/dashboard',
+          icons: [{ src: logoUrl, sizes: '192x192' }],
+        },
+        {
+          name: `${shortName} SuperAdmin`,
+          short_name: 'SuperAdmin',
+          description: 'Access Executive Governance & Command Center',
+          url: '/superadmin/dashboard',
+          icons: [{ src: logoUrl, sizes: '192x192' }],
         },
       ],
     };

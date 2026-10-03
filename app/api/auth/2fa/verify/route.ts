@@ -70,9 +70,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid 6-digit Authenticator code or Backup Code' }, { status: 401 });
     }
 
-    // Set Session Cookie for authenticated user
+    // Set Session Cookie for authenticated user (30 days default)
     const targetRole = (role === 'ALUMNI' ? 'ALUMNI' : (account.role || role || 'SUB_ADMIN')) as UserRole;
     let redirectTo = redirectMap[targetRole] || '/alumni/dashboard';
+    const rememberMe = true;
 
     if (targetRole === 'ALUMNI') {
       const token = await createAlumniToken({
@@ -80,16 +81,18 @@ export async function POST(req: Request) {
         role: 'ALUMNI',
         email: account.email,
         schoolId: account.schoolId,
-      });
-      await setSessionCookie(token, 'ALUMNI');
+        tokenVersion: account.tokenVersion ?? 1,
+      }, rememberMe);
+      await setSessionCookie(token, 'ALUMNI', rememberMe);
     } else if (targetRole === 'SUB_ADMIN' || targetRole === 'SUPER_ADMIN') {
       const token = await encryptSession({
         userId: account.id,
         role: targetRole,
         email: account.email,
         schoolId: account.schoolId,
-      });
-      await setSessionCookie(token, targetRole);
+        tokenVersion: account.tokenVersion ?? 1,
+      }, rememberMe);
+      await setSessionCookie(token, targetRole, rememberMe);
     }
 
     return NextResponse.json({

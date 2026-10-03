@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await hashPassword(password);
-    await query('UPDATE "Alumni" SET password = $1, "updatedAt" = NOW() WHERE id = $2', [hashedPassword, alumni.id]);
+    await query('UPDATE "Alumni" SET password = $1, "tokenVersion" = COALESCE("tokenVersion", 1) + 1, "updatedAt" = NOW() WHERE id = $2', [hashedPassword, alumni.id]);
     await clearAlumniPasswordResetOtp(cleanEmail);
 
     await logActivity({
