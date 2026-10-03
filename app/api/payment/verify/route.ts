@@ -200,21 +200,27 @@ export async function POST(request: Request) {
       ],
     });
 
-    // 2. Privacy-Safe Broadcast for All Alumni (NO AMOUNT SHOWN)
-    if (schoolId) {
-      await createNotification({
-        title: 'New Contribution Alert! 🎉',
-        message: `${donorName || 'An Alumni'} contributed towards ${type} for our school!`,
-        type: 'DONATION',
-        priority: 'NORMAL',
-        schoolId,
-        entityType: 'Transaction',
-        entityId: razorpay_payment_id,
-        link: '/alumni/dashboard',
-        audiences: [
-          { type: 'SCHOOL_ALUMNI', schoolId }
-        ],
-      });
+    // 2. Private Confirmation ONLY to the donating Alumni (Never broadcast to other alumni)
+    if (donorEmail) {
+      try {
+        const alumniCheck = await pool.query('SELECT id FROM "Alumni" WHERE LOWER(email) = $1 LIMIT 1', [donorEmail.toLowerCase()]);
+        if (alumniCheck.rows.length > 0) {
+          const donorAlumniId = alumniCheck.rows[0].id;
+          await createNotification({
+            title: 'Donation Received - Thank You! 🎉',
+            message: `Your contribution of Rs. ${Number(amount).toLocaleString('en-IN')} towards ${type} was successful.`,
+            type: 'DONATION',
+            priority: 'HIGH',
+            schoolId,
+            entityType: 'Transaction',
+            entityId: razorpay_payment_id,
+            link: '/alumni/dashboard',
+            audiences: [
+              { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: donorAlumniId }
+            ],
+          });
+        }
+      } catch {}
     }
 
     return NextResponse.json({ success: true });
