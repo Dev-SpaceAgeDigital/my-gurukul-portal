@@ -170,7 +170,7 @@ export async function PATCH(request: Request) {
             schoolId: session.schoolId,
             actorId: session.userId,
             actorRole: 'SUB_ADMIN',
-            link: '/alumni/dashboard',
+            link: '/alumni/dashboard?tab=my-posts',
             audiences: [
               { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: alumniId }
             ]
@@ -186,13 +186,32 @@ export async function PATCH(request: Request) {
           schoolId: session.schoolId,
           actorId: alumniId || session.userId,
           actorRole: 'ALUMNI',
-          link: '/alumni/dashboard',
+          link: '/alumni/dashboard?tab=feed',
           audiences: [
             { type: 'SCHOOL_ALUMNI', schoolId: session.schoolId }
           ]
         });
       } catch (notifErr) {
         console.error('Approval notification error:', notifErr);
+      }
+    } else if (status === 'REJECTED' && updatedRow && updatedRow.alumniId) {
+      try {
+        const itemTitle = updatedRow.title || updatedRow.role || updatedRow.companyName || 'Update';
+        await createNotification({
+          title: 'Post Update',
+          message: `Your ${type} "${itemTitle}" was not approved. Please review details in My Posts.`,
+          type: 'CONTENT',
+          priority: 'NORMAL',
+          schoolId: session.schoolId,
+          actorId: session.userId,
+          actorRole: 'SUB_ADMIN',
+          link: '/alumni/dashboard?tab=my-posts',
+          audiences: [
+            { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: updatedRow.alumniId }
+          ]
+        });
+      } catch (rejectNotifErr) {
+        console.error('Rejection notification error:', rejectNotifErr);
       }
     }
 

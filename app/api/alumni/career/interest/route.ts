@@ -65,6 +65,7 @@ export async function POST(request: Request) {
 
         if (targetPost && targetPost.alumniId && targetPost.alumniId !== alumniId) {
           const typeLabel = interestType === 'INTERESTED' ? 'is interested in' : 'has referral contacts for';
+          const postTypeParam = careerPost.rows[0] ? 'CAREER' : 'MENTORSHIP';
           await createNotification({
             title: `New opportunity interest: ${targetPost.title}`,
             message: `${senderName} ${typeLabel} your posted opportunity.`,
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
             actorRole: 'ALUMNI',
             actorId: alumniId,
             schoolId: targetPost.schoolId,
-            link: '/alumni/registrations',
+            link: `/alumni/registrations?postType=${postTypeParam}&postId=${careerId}`,
             audiences: [
               { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: targetPost.alumniId },
             ],

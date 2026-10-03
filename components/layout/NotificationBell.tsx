@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { requestFcmToken } from '@/lib/firebaseClient';
 
 type NotificationBellProps = {
@@ -23,6 +24,73 @@ type NotificationItem = {
   schoolName?: string | null;
 };
 
+export function resolveNotificationLink(item: NotificationItem | { link?: string | null; type?: string; title?: string; message?: string; body?: string }, role: 'SUPER_ADMIN' | 'SUB_ADMIN' | 'ALUMNI' = 'ALUMNI'): string {
+  let link = (item.link || '').trim();
+
+  if (role === 'ALUMNI') {
+    if (link.startsWith('/alumni/registrations') || link.startsWith('/alumni/peer-profile')) {
+      return link;
+    }
+
+    if (link.startsWith('/subadmin/') || link.startsWith('/superadmin/')) {
+      if (link.includes('updates') || link.includes('news')) return '/alumni/dashboard?tab=feed';
+      if (link.includes('events') || link.includes('memories')) return '/alumni/dashboard?tab=memories';
+      if (link.includes('alumni') || link.includes('career') || link.includes('mentorship')) return '/alumni/dashboard?tab=feed';
+      if (link.includes('donations') || link.includes('costs') || link.includes('accounts')) return '/alumni/dashboard?tab=give-back';
+      return '/alumni/dashboard?tab=feed';
+    }
+
+    if (link === '/alumni/dashboard' || link === '/alumni' || link === '') {
+      const typeLower = (item.type || '').toLowerCase();
+      const titleLower = (item.title || '').toLowerCase();
+      const msgLower = ('message' in item ? item.message : 'body' in item ? (item as any).body : '')?.toLowerCase() || '';
+
+      if (titleLower.includes('approved') || titleLower.includes('rejected') || titleLower.includes('revision') || msgLower.includes('your post') || msgLower.includes('my posts')) {
+        return '/alumni/dashboard?tab=my-posts';
+      }
+      if (titleLower.includes('registered') || msgLower.includes('registered interest') || msgLower.includes('referral contact')) {
+        return '/alumni/registrations';
+      }
+      if (typeLower === 'career' || titleLower.includes('job') || titleLower.includes('mentorship') || titleLower.includes('career') || titleLower.includes('opportunity')) {
+        return '/alumni/dashboard?tab=feed';
+      }
+      if (typeLower === 'donation' || titleLower.includes('donation') || titleLower.includes('cause') || titleLower.includes('give back')) {
+        return '/alumni/dashboard?tab=give-back';
+      }
+      if (titleLower.includes('memory') || titleLower.includes('event') || msgLower.includes('campus memory')) {
+        return '/alumni/dashboard?tab=memories';
+      }
+      if (titleLower.includes('csr') || msgLower.includes('csr')) {
+        return '/alumni/dashboard?tab=csr';
+      }
+      return '/alumni/dashboard?tab=feed';
+    }
+
+    return link;
+  }
+
+  if (role === 'SUB_ADMIN') {
+    if (link.startsWith('/alumni/')) {
+      if (link.includes('registrations')) return '/subadmin/alumni';
+      return '/subadmin/dashboard';
+    }
+    return link || '/subadmin/dashboard';
+  }
+
+  if (role === 'SUPER_ADMIN') {
+    if (link.startsWith('/alumni/') || link.startsWith('/subadmin/')) {
+      if (link.includes('updates')) return '/superadmin/updates';
+      if (link.includes('events')) return '/superadmin/events';
+      if (link.includes('alumni')) return '/superadmin/alumni';
+      if (link.includes('donations')) return '/superadmin/donations';
+      return '/superadmin/dashboard';
+    }
+    return link || '/superadmin/dashboard';
+  }
+
+  return link || '/';
+}
+
 function formatTime(value: string) {
   const date = new Date(value);
   const diff = Date.now() - date.getTime();
@@ -37,6 +105,7 @@ function formatTime(value: string) {
 }
 
 export default function NotificationBell({ role, variant = 'default' }: NotificationBellProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -98,14 +167,25 @@ export default function NotificationBell({ role, variant = 'default' }: Notifica
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
 
-  const markRead = async (id: string, link?: string | null) => {
+  const markRead = async (item: NotificationItem) => {
+    const targetUrl = resolveNotificationLink(item, role);
+    setOpen(false);
+
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, action: 'read' }),
+      body: JSON.stringify({ id: item.id, action: 'read' }),
     }).catch(() => {});
-    await loadNotifications();
-    if (link) window.location.href = link;
+
+    loadNotifications().catch(() => {});
+
+    if (targetUrl) {
+      if (targetUrl.startsWith('http')) {
+        window.location.href = targetUrl;
+      } else {
+        router.push(targetUrl);
+      }
+    }
   };
 
   const markAllRead = async () => {
@@ -217,7 +297,7 @@ export default function NotificationBell({ role, variant = 'default' }: Notifica
                   return (
                     <button
                       key={item.id}
-                      onClick={() => markRead(item.id, item.link)}
+                      onClick={() => markRead(item)}
                       className={`w-full text-left px-4 py-3 transition-colors flex items-start gap-3 cursor-pointer ${
                         item.isRead ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/50 hover:bg-blue-50/80'
                       }`}

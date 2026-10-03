@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       schoolId: session.schoolId,
       entityType: 'Event',
       entityId: result.rows[0].id,
-      link: '/alumni/dashboard',
+      link: '/alumni/dashboard?tab=memories',
       audiences: [
         { type: 'ROLE', recipientRole: 'SUPER_ADMIN' },
         { type: 'SCHOOL_ALUMNI', schoolId: session.schoolId },

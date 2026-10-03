@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       priority: 'HIGH',
       entityType: 'OpportunityRegistration',
       entityId: result.rows[0].id,
-      link: '/alumni/registrations',
+      link: `/alumni/registrations?postType=${normalizedPostType}&postId=${postId}`,
       audiences: [
         { type: 'DIRECT', recipientRole: 'ALUMNI', recipientId: post.alumniId },
         { type: 'ROLE', recipientRole: 'SUPER_ADMIN' },

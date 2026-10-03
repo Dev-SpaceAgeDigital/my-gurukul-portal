@@ -3,9 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { requestFcmToken, listenToForegroundNotifications } from '@/lib/firebaseClient';
 import { Bell, X, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { resolveNotificationLink } from '@/components/layout/NotificationBell';
 
 export default function FirebaseNotificationHandler() {
+  const router = useRouter();
   const [notification, setNotification] = useState<{
     title: string;
     body: string;
@@ -33,12 +35,14 @@ export default function FirebaseNotificationHandler() {
         requestFcmToken().catch(() => {});
       }
 
-      const showInAppToast = (title: string, body: string, icon?: string, link?: string | null) => {
+      const showInAppToast = (title: string, body: string, icon?: string, rawLink?: string | null) => {
+        const resolvedLink = resolveNotificationLink({ title, body, message: body, link: rawLink }, 'ALUMNI');
+
         setNotification({
           title,
           body,
           icon: icon || '/my-gurukul.png',
-          link: link || null,
+          link: resolvedLink,
         });
 
         // Trigger native notification if allowed
@@ -49,14 +53,14 @@ export default function FirebaseNotificationHandler() {
                 body,
                 icon: icon || '/my-gurukul.png',
                 badge: icon || '/my-gurukul.png',
-                data: { url: link || '/' },
+                data: { url: resolvedLink || '/' },
               });
             }).catch(() => {});
           }
         }
 
-        // Auto-dismiss in-app toast after 7 seconds
-        setTimeout(() => setNotification(null), 7000);
+        // Auto-dismiss in-app toast after 8 seconds
+        setTimeout(() => setNotification(null), 8000);
       };
 
       // 1. Listen for In-App Toast events triggered by database sync
