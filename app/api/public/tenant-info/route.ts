@@ -5,7 +5,6 @@ import { withPublicApi } from '@/lib/public-api';
 export const dynamic = 'force-dynamic';
 
 export const GET = withPublicApi(async (req) => {
-
   try {
     const url = new URL(req.url);
     const hostParam = url.searchParams.get('host');
@@ -16,7 +15,45 @@ export const GET = withPublicApi(async (req) => {
     const nakedHost = cleanHost.replace(/^portal\./, '').replace(/^www\./, '');
     const subdomainSlug = cleanHost.split('.')[0];
 
+    // Default fallback contacts
+    const defaultContacts = {
+      schoolPhone: '+91 98200 12345',
+      schoolEmail: 'admin@mygurukul.org',
+      schoolAddress: 'Campus Administration Office',
+      trustPhone: '+91 98200 54321',
+      trustEmail: 'trust@mygurukul.org',
+    };
+
     if (!cleanHost || cleanHost === 'localhost' || cleanHost === '127.0.0.1') {
+      // Fetch the first active school & trust in the database for localhost testing
+      const defaultSchoolRes = await pool.query(
+        `SELECT s.id as "schoolId", s."schoolName", s."logoUrl" as "schoolLogo", s."phoneNo" as "schoolPhone", s.email as "schoolEmail", s.address as "schoolAddress",
+                t.id as "trustId", t."trustName", t."logoUrl" as "trustLogo", t."presidentNo" as "trustPhone", t."primaryColor"
+         FROM "School" s
+         LEFT JOIN "Trust" t ON s."trustId" = t.id
+         LIMIT 1`
+      ).catch(() => ({ rows: [] }));
+
+      if (defaultSchoolRes.rows.length > 0) {
+        const row = defaultSchoolRes.rows[0];
+        return NextResponse.json({
+          success: true,
+          tenantType: 'SCHOOL',
+          schoolId: row.schoolId,
+          trustId: row.trustId,
+          name: row.schoolName,
+          logoUrl: row.schoolLogo || row.trustLogo || '/my-gurukul.png',
+          primaryColor: row.primaryColor || '#0f172a',
+          trustName: row.trustName || 'EduTrust Network',
+          customDomain: cleanHost,
+          schoolPhone: row.schoolPhone || defaultContacts.schoolPhone,
+          schoolEmail: row.schoolEmail || defaultContacts.schoolEmail,
+          schoolAddress: row.schoolAddress || defaultContacts.schoolAddress,
+          trustPhone: row.trustPhone || defaultContacts.trustPhone,
+          trustEmail: defaultContacts.trustEmail,
+        });
+      }
+
       // Default fallback info for local development
       return NextResponse.json({
         success: true,
@@ -25,14 +62,16 @@ export const GET = withPublicApi(async (req) => {
         logoUrl: '/my-gurukul.png',
         primaryColor: '#0f172a',
         trustName: 'EduTrust Network',
-        customDomain: cleanHost
+        customDomain: cleanHost,
+        ...defaultContacts,
       });
     }
 
     // 1. First check if domain matches a School record
     const schoolRes = await pool.query(
       `SELECT s.id as "schoolId", s."schoolName", s."logoUrl" as "schoolLogo", s."customDomain", s."subdomain", s."trustId",
-              t."trustName", t."logoUrl" as "trustLogo", t."primaryColor",
+              s."phoneNo" as "schoolPhone", s.email as "schoolEmail", s.address as "schoolAddress",
+              t."trustName", t."logoUrl" as "trustLogo", t."presidentNo" as "trustPhone", t."primaryColor",
               t."is80GEnabled", t."taxExemptionNo", t."min80GAmount"
        FROM "School" s
        LEFT JOIN "Trust" t ON s."trustId" = t.id
@@ -54,6 +93,11 @@ export const GET = withPublicApi(async (req) => {
         primaryColor: row.primaryColor || '#0f172a',
         trustName: row.trustName || 'Trust Network',
         customDomain: row.customDomain || cleanHost,
+        schoolPhone: row.schoolPhone || defaultContacts.schoolPhone,
+        schoolEmail: row.schoolEmail || defaultContacts.schoolEmail,
+        schoolAddress: row.schoolAddress || defaultContacts.schoolAddress,
+        trustPhone: row.trustPhone || defaultContacts.trustPhone,
+        trustEmail: defaultContacts.trustEmail,
         is80GEnabled: Boolean(row.is80GEnabled),
         taxExemptionNo: row.taxExemptionNo || null,
         min80GAmount: row.min80GAmount ? Number(row.min80GAmount) : 500,
@@ -63,6 +107,7 @@ export const GET = withPublicApi(async (req) => {
     // 2. Next check if domain matches a Trust record
     const trustRes = await pool.query(
       `SELECT id as "trustId", "trustName", "logoUrl", "primaryColor", "customDomain", "slug",
+              "presidentNo" as "trustPhone",
               "is80GEnabled", "taxExemptionNo", "min80GAmount"
        FROM "Trust"
        WHERE LOWER("customDomain") IN ($1, $2) 
@@ -82,6 +127,8 @@ export const GET = withPublicApi(async (req) => {
         primaryColor: row.primaryColor || '#0f172a',
         trustName: row.trustName,
         customDomain: row.customDomain || cleanHost,
+        trustPhone: row.trustPhone || defaultContacts.trustPhone,
+        trustEmail: defaultContacts.trustEmail,
         is80GEnabled: Boolean(row.is80GEnabled),
         taxExemptionNo: row.taxExemptionNo || null,
         min80GAmount: row.min80GAmount ? Number(row.min80GAmount) : 500,
@@ -96,7 +143,8 @@ export const GET = withPublicApi(async (req) => {
       logoUrl: '/my-gurukul.png',
       primaryColor: '#0f172a',
       trustName: 'My Gurukul Network',
-      customDomain: cleanHost
+      customDomain: cleanHost,
+      ...defaultContacts,
     });
 
   } catch (error: any) {
@@ -109,14 +157,10 @@ export const GET = withPublicApi(async (req) => {
       primaryColor: '#0f172a',
       trustName: 'My Gurukul Network',
       customDomain: '',
-      debug: {
-        error: error?.message || String(error),
-        code: error?.code,
-        envDbSet: !!process.env.DATABASE_URL
-      }
+      schoolPhone: '+91 98200 12345',
+      schoolEmail: 'admin@mygurukul.org',
+      trustPhone: '+91 98200 54321',
+      trustEmail: 'trust@mygurukul.org',
     });
   }
 }, { cacheSeconds: 0 });
-
-
-

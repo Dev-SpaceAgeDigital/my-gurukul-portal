@@ -8,9 +8,26 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  ShieldCheck
+  ShieldCheck,
+  Phone,
+  Mail,
+  Building2,
+  PhoneCall,
+  HelpCircle,
+  School
 } from 'lucide-react';
 import { usePortalDialog } from '@/components/ui/PortalDialog';
+
+interface TenantInfo {
+  logoUrl: string;
+  name: string;
+  trustName?: string;
+  schoolPhone?: string;
+  schoolEmail?: string;
+  schoolAddress?: string;
+  trustPhone?: string;
+  trustEmail?: string;
+}
 
 export default function AlumniLoginPage() {
   const [email, setEmail] = useState('');
@@ -35,7 +52,7 @@ export default function AlumniLoginPage() {
   const router = useRouter();
   const { dialog, showAlert } = usePortalDialog();
 
-  const [tenantInfo, setTenantInfo] = useState<{ logoUrl: string; name: string } | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
 
   useEffect(() => {
     fetch('/api/public/tenant-info')
@@ -47,6 +64,12 @@ export default function AlumniLoginPage() {
           setTenantInfo({
             logoUrl,
             name,
+            trustName: data.trustName,
+            schoolPhone: data.schoolPhone,
+            schoolEmail: data.schoolEmail,
+            schoolAddress: data.schoolAddress,
+            trustPhone: data.trustPhone,
+            trustEmail: data.trustEmail,
           });
           document.title = `${name} - Alumni Hub Login`;
           if (logoUrl && logoUrl !== '/my-gurukul.png') {
@@ -303,27 +326,32 @@ export default function AlumniLoginPage() {
 
 	          <form onSubmit={resetMode ? handleResetSubmit : twoFactorStep ? handle2FASubmit : otpStep ? handleOtpSubmit : handleSubmit} className="space-y-4">
               {resetMode ? (
-                <div className="space-y-5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <div className="space-y-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <ShieldCheck size={22} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Reset password</h3>
-                    <p className="mt-1 text-sm font-medium text-slate-500">
-                      {resetOtpSent ? 'Enter the OTP and choose a new password.' : 'Enter your registered alumni email to receive a reset OTP.'}
+                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Forgot Password / Account Recovery</h3>
+                    <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">
+                      {resetOtpSent
+                        ? 'Enter the 6-digit OTP sent to your registered email and choose a new password.'
+                        : 'Enter your registered email address or mobile number to receive a password reset OTP.'}
                     </p>
                   </div>
                   {!resetOtpSent ? (
-                    <input
-                      type="email"
-                      required
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
-                      placeholder="alumni@example.com"
-                    />
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Email or Mobile Number</label>
+                      <input
+                        type="text"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300 shadow-xs"
+                        placeholder="e.g. alumni@example.com or 9820012345"
+                      />
+                    </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <input
                         type="text"
                         inputMode="numeric"
@@ -331,7 +359,7 @@ export default function AlumniLoginPage() {
                         required
                         value={resetOtp}
                         onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-900 text-center text-2xl font-black tracking-[0.35em]"
+                        className="w-full px-4 py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-900 text-center text-xl font-black tracking-[0.3em]"
                         placeholder="000000"
                       />
                       <input
@@ -340,8 +368,8 @@ export default function AlumniLoginPage() {
                         minLength={8}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
-                        placeholder="New password"
+                        className="w-full px-4 py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
+                        placeholder="New password (min 8 chars)"
                       />
                       <input
                         type="password"
@@ -349,24 +377,95 @@ export default function AlumniLoginPage() {
                         minLength={8}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
-                        placeholder="Confirm password"
+                        className="w-full px-4 py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
+                        placeholder="Confirm new password"
                       />
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetMode(false);
-                      setResetOtpSent(false);
-                      setResetOtp('');
-                      setNewPassword('');
-                      setConfirmPassword('');
-                    }}
-                    className="text-xs font-bold text-blue-600 hover:underline"
-                  >
-                    Back to login
-                  </button>
+
+                  {/* School & Trust Contact Card for Alumni without Email or Stolen Access */}
+                  <div className="mt-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-white p-3.5 space-y-2.5 shadow-xs text-left">
+                    <div className="flex items-center gap-2 text-blue-900 font-bold text-xs">
+                      <HelpCircle size={15} className="text-blue-600 shrink-0" />
+                      <span>Don't have an email or need instant help?</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Contact your school or trust administration office directly. The administrators can verify your identity and give you a temporary password to log in immediately.
+                    </p>
+
+                    <div className="pt-1.5 space-y-2 border-t border-blue-100/80">
+                      {/* School Contact */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/90 p-2.5 rounded-xl border border-blue-100/60 shadow-xs">
+                        <div className="min-w-0">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-900 truncate">
+                            <School size={13} className="text-blue-600 shrink-0" />
+                            <span>{tenantInfo?.name || 'School Administration'}</span>
+                          </span>
+                          <span className="block text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                            {tenantInfo?.schoolAddress || 'School Office Helpline'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {tenantInfo?.schoolPhone && (
+                            <a
+                              href={`tel:${tenantInfo.schoolPhone.replace(/\s+/g, '')}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10.5px] font-bold shadow-xs transition-all cursor-pointer"
+                              title="Call School Office"
+                            >
+                              <PhoneCall size={11} />
+                              <span>Call</span>
+                            </a>
+                          )}
+                          {tenantInfo?.schoolEmail && (
+                            <a
+                              href={`mailto:${tenantInfo.schoolEmail}?subject=Alumni%20Portal%20Password%20Reset%20Request`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-black text-white rounded-lg text-[10.5px] font-bold shadow-xs transition-all cursor-pointer"
+                              title="Email School Office"
+                            >
+                              <Mail size={11} />
+                              <span>Email</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Trust Contact */}
+                      {tenantInfo?.trustName && (
+                        <div className="flex items-center justify-between gap-2 px-2 text-[10.5px] text-slate-600">
+                          <span className="flex items-center gap-1 truncate font-medium text-slate-700">
+                            <Building2 size={12} className="text-slate-400 shrink-0" />
+                            <span>{tenantInfo.trustName}</span>
+                          </span>
+                          {tenantInfo.trustPhone && (
+                            <a
+                              href={`tel:${tenantInfo.trustPhone.replace(/\s+/g, '')}`}
+                              className="text-blue-600 font-bold hover:underline shrink-0 flex items-center gap-1"
+                            >
+                              <Phone size={10} />
+                              <span>{tenantInfo.trustPhone}</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetMode(false);
+                        setResetOtpSent(false);
+                        setResetOtp('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }}
+                      className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      ← Back to login
+                    </button>
+                  </div>
                 </div>
               ) : twoFactorStep ? (
                 <div className="space-y-5">
