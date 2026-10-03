@@ -71,10 +71,24 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
   const [internalActiveItem, setInternalActiveItem] = useState('Dashboard');
   const [greeting, setGreeting] = useState('Welcome back');
   const [tabBadges, setTabBadges] = useState<Record<string, number>>({});
+  const [adminBadges, setAdminBadges] = useState<Record<string, number>>({});
   const activeItem = externalActiveItem || internalActiveItem;
   const router = useRouter();
 
   const [tenantInfo, setTenantInfo] = useState<{ logoUrl: string; name: string; trustName?: string } | null>(null);
+
+  const fetchAdminBadges = async () => {
+    if (role !== 'SUPER_ADMIN' && role !== 'SUB_ADMIN') return;
+    try {
+      const res = await fetch('/api/admin/nav-badges');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.badges) {
+          setAdminBadges(data.badges);
+        }
+      }
+    } catch { }
+  };
 
   const fetchTabBadges = async () => {
     if (role !== 'ALUMNI') return;
@@ -118,6 +132,10 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
     if (role === 'ALUMNI') {
       fetchTabBadges();
       const interval = setInterval(fetchTabBadges, 30000);
+      return () => clearInterval(interval);
+    } else if (role === 'SUPER_ADMIN' || role === 'SUB_ADMIN') {
+      fetchAdminBadges();
+      const interval = setInterval(fetchAdminBadges, 25000);
       return () => clearInterval(interval);
     }
   }, [role]);
@@ -325,18 +343,31 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
             {/* Centered Navigation Tabs */}
             <nav className="hidden lg:flex items-center justify-center flex-1 mx-4 min-w-0 overflow-x-auto no-scrollbar py-1">
               <div className="inline-flex items-center rounded-xl border border-[#E6DFD3]/70 bg-white/80 backdrop-blur-md px-2 py-1.5 gap-1.5 shadow-sm max-w-full overflow-x-auto no-scrollbar">
-                {menuItems.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => handleNavigate(item.name)}
-                    className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 whitespace-nowrap cursor-pointer ${activeItem === item.name
-                      ? 'bg-[#18181b] text-white shadow-sm'
-                      : 'text-slate-700 hover:bg-[#E4E0D5]/70 hover:text-slate-900'
+                {menuItems.map((item) => {
+                  const badgeCount = adminBadges[item.name] || 0;
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => handleNavigate(item.name)}
+                      className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 whitespace-nowrap cursor-pointer inline-flex items-center gap-1.5 ${
+                        activeItem === item.name
+                          ? 'bg-[#18181b] text-white shadow-sm'
+                          : 'text-slate-700 hover:bg-[#E4E0D5]/70 hover:text-slate-900'
                       }`}
-                  >
-                    {item.name}
-                  </button>
-                ))}
+                    >
+                      <span>{item.name}</span>
+                      {badgeCount > 0 && (
+                        <span className={`px-1.5 py-0.2 text-[10px] font-black rounded-full shadow-xs ${
+                          activeItem === item.name 
+                            ? 'bg-rose-500 text-white' 
+                            : 'bg-rose-500 text-white animate-pulse'
+                        }`}>
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </nav>
 
@@ -448,18 +479,27 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
                     </button>
                   </div>
                   <nav className="flex flex-col space-y-2">
-                    {menuItems.map((item) => (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNavigate(item.name)}
-                        className={`w-full text-left px-5 py-3 rounded-full text-xs font-semibold transition-all ${activeItem === item.name
-                          ? 'bg-[#18181b] text-white shadow-sm'
-                          : 'bg-white/60 border border-[#E6DFD3]/30 text-slate-700 hover:bg-[#EFECE5]'
+                    {menuItems.map((item) => {
+                      const badgeCount = adminBadges[item.name] || 0;
+                      return (
+                        <button
+                          key={item.name}
+                          onClick={() => handleNavigate(item.name)}
+                          className={`w-full flex items-center justify-between px-5 py-3 rounded-full text-xs font-semibold transition-all ${
+                            activeItem === item.name
+                              ? 'bg-[#18181b] text-white shadow-sm'
+                              : 'bg-white/60 border border-[#E6DFD3]/30 text-slate-700 hover:bg-[#EFECE5]'
                           }`}
-                      >
-                        {item.name}
-                      </button>
-                    ))}
+                        >
+                          <span>{item.name}</span>
+                          {badgeCount > 0 && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white shadow-xs">
+                              {badgeCount > 99 ? '99+' : badgeCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </nav>
                 </div>
                 <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-5 py-3 bg-red-50 text-red-600 rounded-full text-xs font-bold hover:bg-red-100 transition-all">
@@ -558,23 +598,41 @@ export default function DashboardLayout({ title, role, activeItem: externalActiv
               <div className="flex-1 px-3 py-6 overflow-y-auto space-y-4 relative z-10 scrollbar-none">
                 <div>
                   <nav className="space-y-1">
-                    {menuItems.map((item) => (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNavigate(item.name)}
-                        className={`w-full flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 relative group ${activeItem === item.name
-                          ? colors.active
-                          : `${colors.hover} hover:text-slate-900`
+                    {menuItems.map((item) => {
+                      const badgeCount = adminBadges[item.name] || 0;
+                      return (
+                        <button
+                          key={item.name}
+                          onClick={() => handleNavigate(item.name)}
+                          className={`w-full flex items-center px-4 py-2.5 rounded-xl transition-all duration-200 relative group cursor-pointer ${
+                            activeItem === item.name
+                              ? colors.active
+                              : `${colors.hover} hover:text-slate-900`
                           }`}
-                      >
-                        <div className="flex-shrink-0 relative z-10 transition-transform duration-200 group-hover:scale-105">
-                          {item.icon}
-                        </div>
-                        {isSidebarOpen && (
-                          <span className="ml-3 text-[13px] font-semibold tracking-tight whitespace-nowrap relative z-10 transition-transform duration-200 group-hover:translate-x-0.5">{item.name}</span>
-                        )}
-                      </button>
-                    ))}
+                        >
+                          <div className="flex-shrink-0 relative z-10 transition-transform duration-200 group-hover:scale-105">
+                            {item.icon}
+                            {badgeCount > 0 && !isSidebarOpen && (
+                              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white shadow-sm ring-1 ring-white animate-pulse">
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                              </span>
+                            )}
+                          </div>
+                          {isSidebarOpen && (
+                            <div className="ml-3 flex-1 flex items-center justify-between min-w-0 relative z-10">
+                              <span className="text-[13px] font-semibold tracking-tight whitespace-nowrap truncate transition-transform duration-200 group-hover:translate-x-0.5">
+                                {item.name}
+                              </span>
+                              {badgeCount > 0 && (
+                                <span className="ml-2 px-1.5 py-0.2 text-[10px] font-black rounded-full bg-rose-500 text-white shadow-xs animate-pulse shrink-0">
+                                  {badgeCount > 99 ? '99+' : badgeCount}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </nav>
                 </div>
               </div>
