@@ -60,6 +60,11 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [isAddingMedia, setIsAddingMedia] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
+
+  // Preview Modal state
+  const [previewMedia, setPreviewMedia] = useState<Media | null>(null);
+
   const { dialog, confirmDialog, showAlert } = usePortalDialog();
 
   useEffect(() => {
@@ -123,6 +128,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
         }
         return e;
       }));
+      if (previewMedia?.id === mediaId) setPreviewMedia(null);
       showAlert({ title: 'Media deleted', message: 'The media item has been removed from this event.', variant: 'success' });
     } catch (error) {
       showAlert({ title: 'Delete failed', message: 'The media item could not be deleted.', variant: 'danger' });
@@ -130,38 +136,81 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, eventId: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     e.target.value = '';
+
+    // 1. Check Batch Count Limit (Max 10 files)
+    const MAX_ITEMS = 10;
+    if (files.length > MAX_ITEMS) {
+      showAlert({
+        title: 'Too many files',
+        message: `You can upload a maximum of ${MAX_ITEMS} photos at one time. Please select fewer files.`,
+        variant: 'danger',
+      });
+      return;
+    }
+
+    // 2. Check File Size Limit (Max 10MB per image)
+    const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+    for (const f of files) {
+      if (f.size > MAX_SIZE_BYTES) {
+        showAlert({
+          title: 'File too large',
+          message: `"${f.name}" is larger than 10MB. Please compress or choose a file under 10MB.`,
+          variant: 'danger',
+        });
+        return;
+      }
+    }
     
     setIsAddingMedia(true);
-    const formData = new FormData();
-    formData.append('eventId', eventId);
-    formData.append('mediaType', 'IMAGE');
-    formData.append('file', file);
+    let uploadedCount = 0;
+    const addedMedia: Media[] = [];
 
     try {
-      const res = await fetch('/api/subadmin/events/media', {
-        method: 'POST',
-        body: formData
-      });
-      if (res.ok) {
-        const newMedia = await res.json();
-        setEvents((current) => current.map(ev => {
-          if (ev.id === eventId) {
-            return { ...ev, media: [newMedia, ...ev.media] };
-          }
-          return ev;
-        }));
-        showAlert({ title: 'Photo uploaded', message: 'The event photo has been added successfully.', variant: 'success' });
+      for (let i = 0; i < files.length; i++) {
+        setUploadStatusText(`Uploading photo ${i + 1} of ${files.length}...`);
+        const formData = new FormData();
+        formData.append('eventId', eventId);
+        formData.append('mediaType', 'IMAGE');
+        formData.append('file', files[i]);
+
+        const res = await fetch('/api/subadmin/events/media', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const newMedia = await res.json();
+          addedMedia.push(newMedia);
+          uploadedCount++;
+        }
+      }
+
+      if (addedMedia.length > 0) {
+        setEvents((current) =>
+          current.map((ev) => {
+            if (ev.id === eventId) {
+              return { ...ev, media: [...addedMedia, ...ev.media] };
+            }
+            return ev;
+          })
+        );
+        showAlert({
+          title: 'Photos uploaded',
+          message: `Successfully uploaded ${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} to the event gallery.`,
+          variant: 'success',
+        });
       } else {
-        showAlert({ title: 'Upload failed', message: 'The image could not be added to the event.', variant: 'danger' });
+        showAlert({ title: 'Upload failed', message: 'Failed to upload selected photos.', variant: 'danger' });
       }
     } catch (error) {
-      showAlert({ title: 'Upload failed', message: 'The image could not be added to the event.', variant: 'danger' });
+      showAlert({ title: 'Upload failed', message: 'An error occurred during photo upload.', variant: 'danger' });
     } finally {
       setIsAddingMedia(false);
+      setUploadStatusText(null);
     }
   };
 
@@ -369,14 +418,24 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                   <div className="relative">
                     <input
                       type="file"
-                      accept="image/*"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       onChange={(e) => handleImageUpload(e, selectedEvent.id)}
                       disabled={isAddingMedia}
                     />
-                    <button className="flex items-center px-3.5 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-50 transition-all pointer-events-none shadow-xs">
-                      <ImageIcon size={14} className="mr-2 text-[#dac48b]" />
-                      Upload Photo
+                    <button className="flex items-center px-3.5 py-2 bg-[#18181b] text-white rounded-md text-xs font-bold hover:bg-black transition-all pointer-events-none shadow-xs">
+                      {isAddingMedia ? (
+                        <>
+                          <Loader2 size={14} className="mr-2 animate-spin text-amber-400" />
+                          <span>{uploadStatusText || 'Uploading...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon size={14} className="mr-2 text-amber-400" />
+                          <span>Upload Photos (Max 10 / 10MB)</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   <button
@@ -385,7 +444,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                       setIsYoutubeModalOpen(true);
                     }}
                     disabled={isAddingMedia}
-                    className="flex items-center px-3.5 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-50 transition-all shadow-xs"
+                    className="flex items-center px-3.5 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
                   >
                     <Video size={14} className="mr-2 text-red-500" />
                     Add Video
@@ -399,7 +458,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                   </Link>
                   <button
                     onClick={() => handleDeleteEvent(selectedEvent.id)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-md transition-colors"
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-md transition-colors cursor-pointer"
                     title="Delete Event"
                   >
                     <Trash2 size={16} />
@@ -420,33 +479,42 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-4">
                     {selectedEvent.media.map((item, mediaIndex) => (
-                      <div key={`media-${item.id || mediaIndex}-${mediaIndex}`} className="relative group aspect-video bg-slate-100 rounded-md overflow-hidden border border-slate-200 shadow-xs">
+                      <div
+                        key={`media-${item.id || mediaIndex}-${mediaIndex}`}
+                        onClick={() => setPreviewMedia(item)}
+                        className="relative group aspect-video bg-slate-100 rounded-md overflow-hidden border border-slate-200 shadow-xs cursor-pointer"
+                      >
                         {item.mediaType === 'IMAGE' ? (
-                          <Image src={item.url} alt="Event photo" fill className="object-cover" unoptimized />
+                          <Image src={item.url} alt="Event photo" fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
                         ) : (
                           <div className="w-full h-full relative">
                             <Image
                               src={`https://img.youtube.com/vi/${getYoutubeVideoId(item.url)}/maxresdefault.jpg`}
                               alt="Video thumbnail"
                               fill
-                              className="object-cover"
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
                               unoptimized
                               onError={(e) => {
                                 e.currentTarget.src = `https://img.youtube.com/vi/${getYoutubeVideoId(item.url)}/hqdefault.jpg`;
                               }}
                             />
                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                              <PlayCircle size={32} className="text-white drop-shadow-md" />
+                              <PlayCircle size={32} className="text-white drop-shadow-md group-hover:scale-110 transition-transform" />
                             </div>
                           </div>
                         )}
 
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between p-3 pointer-events-none">
+                          <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded-md">Click to View</span>
                           <button
-                            onClick={() => handleDeleteMedia(selectedEvent.id, item.id)}
-                            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors transform scale-90 group-hover:scale-100 shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMedia(selectedEvent.id, item.id);
+                            }}
+                            className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors pointer-events-auto shadow-md"
+                            title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -466,7 +534,7 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/70">
               <h3 className="text-lg font-bold text-slate-900">Add YouTube Video</h3>
-              <button onClick={() => setIsYoutubeModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsYoutubeModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -486,12 +554,80 @@ export default function EventGallery({ schoolId: _schoolId, isSuperAdmin = false
                 <button
                   type="submit"
                   disabled={isAddingMedia}
-                  className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-red-700 transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-red-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {isAddingMedia ? <Loader2 size={16} className="animate-spin" /> : 'Add Video Link'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Preview Lightbox / Video Modal */}
+      {previewMedia && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 p-4 sm:p-6 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col justify-between rounded-2xl sm:rounded-3xl border border-white/20 bg-slate-900/95 p-4 sm:p-6 text-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/15">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-md">
+                  {previewMedia.mediaType} Preview
+                </span>
+                <span className="text-xs text-slate-400 truncate max-w-md">
+                  {selectedEvent?.title}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewMedia(null)}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Media Content */}
+            <div className="relative my-4 flex items-center justify-center min-h-[300px] max-h-[70vh] overflow-hidden">
+              {previewMedia.mediaType === 'IMAGE' ? (
+                <img
+                  src={previewMedia.url}
+                  alt="Event Full Preview"
+                  className="max-h-[68vh] max-w-full object-contain rounded-xl shadow-lg"
+                />
+              ) : (
+                <div className="w-full aspect-video max-h-[68vh]">
+                  {previewMedia.url.includes('youtube') || previewMedia.url.includes('youtu.be') ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeVideoId(previewMedia.url)}?autoplay=1`}
+                      title="Video Preview"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full rounded-xl"
+                    />
+                  ) : (
+                    <video src={previewMedia.url} controls autoPlay className="w-full h-full rounded-xl object-contain" />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/15 text-xs text-slate-400">
+              <span className="truncate max-w-lg">{previewMedia.url}</span>
+              <a
+                href={previewMedia.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-bold"
+              >
+                Open Original File
+              </a>
+            </div>
           </div>
         </div>
       )}
