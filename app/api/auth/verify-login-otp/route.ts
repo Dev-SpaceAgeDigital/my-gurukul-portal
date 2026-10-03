@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const rememberMe = body.rememberMe !== false; // defaults to true for 30-day session
 
     if (role === 'ALUMNI') {
-      const result = await query('SELECT id, email, "schoolId", "tokenVersion" FROM "Alumni" WHERE LOWER(email) = $1', [email]);
+      const result = await query('SELECT * FROM "Alumni" WHERE LOWER(email) = $1', [email]);
       const alumni = result.rows[0];
       if (!alumni) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       }, rememberMe);
       await setSessionCookie(token, 'ALUMNI', rememberMe);
     } else {
-      const result = await query('SELECT id, email, role, "schoolId", "tokenVersion" FROM "User" WHERE LOWER(email) = $1 AND role = $2', [email, role]);
+      const result = await query('SELECT * FROM "User" WHERE LOWER(email) = $1 AND role = $2', [email, role]);
       const user = result.rows[0];
       if (!user) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
@@ -60,8 +60,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, redirectTo: redirectMap[role] });
-  } catch (error) {
-    console.error('Login OTP verify error:', error);
-    return NextResponse.json({ error: 'Failed to verify OTP' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Login OTP verify error:', error?.message || error, error?.stack);
+    return NextResponse.json({ error: error?.message || 'Failed to verify OTP' }, { status: 500 });
   }
 }

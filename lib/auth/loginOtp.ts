@@ -137,10 +137,20 @@ export async function startLoginOtp(input: LoginOtpInput) {
   try {
     const { default: pool } = await import('@/lib/db');
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS "LoginOtp" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "role" VARCHAR(50) NOT NULL,
+        "email" VARCHAR(255) NOT NULL,
+        "otp" VARCHAR(10) NOT NULL,
+        "attempts" INTEGER DEFAULT 0,
+        "expiresAt" TIMESTAMPTZ NOT NULL,
+        "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+        CONSTRAINT "unique_role_email_otp" UNIQUE ("role", "email")
+      );
       INSERT INTO "LoginOtp" ("role", "email", "otp", "attempts", "expiresAt")
       VALUES ($1, $2, $3, 0, NOW() + INTERVAL '10 minutes')
       ON CONFLICT ("role", "email")
-      DO UPDATE SET "otp" = $3, "attempts" = 0, "expiresAt" = NOW() + INTERVAL '10 minutes', "createdAt" = NOW()
+      DO UPDATE SET "otp" = $3, "attempts" = 0, "expiresAt" = NOW() + INTERVAL '10 minutes', "createdAt" = NOW();
     `, [input.role, email, otp]);
   } catch (dbErr) {
     console.warn('[LoginOtp] DB OTP store warning:', dbErr);

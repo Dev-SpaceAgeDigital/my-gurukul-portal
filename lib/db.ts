@@ -35,4 +35,9 @@ if (process.env.NODE_ENV === 'production') {
 export const db = drizzle(pool, { schema });
 export const query = (text: string, params?: any[]) => pool.query(text, params);
 
+// Automatically ensure schema on initialization
+import('./ensureMasterAdminSchema')
+  .then(({ ensureMasterAdminSchema }) => ensureMasterAdminSchema())
+  .catch((err) => console.warn('[db] ensureMasterAdminSchema init warning:', err));
+
 export default pool;
