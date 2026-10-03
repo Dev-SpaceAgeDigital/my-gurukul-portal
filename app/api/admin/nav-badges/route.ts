@@ -17,92 +17,132 @@ export async function GET() {
     const badges: Record<string, number> = {};
 
     if (session.role === 'SUPER_ADMIN') {
+      // 1. 80G Certificate Requests
       try {
         await ensure80GTable();
-        // Count pending 80G requests
         const res80g = await pool.query(
           `SELECT COUNT(*)::int as count FROM "Donation80GRequest" WHERE status = 'PENDING'`
         );
-        badges['80G Requests'] = res80g.rows[0]?.count || 0;
+        if (res80g.rows[0]?.count > 0) {
+          badges['80G Requests'] = res80g.rows[0].count;
+        }
       } catch (err) {
         console.error('Failed to get 80G badge count:', err);
       }
 
+      // 2. CSR Management Inquiries
       try {
         await ensureCsrTables();
-        // Count pending CSR inquiries
         const resCsr = await pool.query(
           `SELECT COUNT(*)::int as count FROM "CsrInquiry" WHERE status = 'PENDING'`
         );
-        badges['CSR Management'] = resCsr.rows[0]?.count || 0;
+        if (resCsr.rows[0]?.count > 0) {
+          badges['CSR Management'] = resCsr.rows[0].count;
+        }
       } catch (err) {
         console.error('Failed to get CSR badge count:', err);
       }
 
+      // 3. Alumni Communication (Pending Alumni Verification Requests)
       try {
         await ensureAlumniOnboardingTables();
-        // Count pending alumni onboarding requests
         const resAlumni = await pool.query(
           `SELECT COUNT(*)::int as count FROM "AlumniRegistrationRequest" req
            LEFT JOIN "School" s ON req."schoolId" = s.id
            WHERE req.status = 'PENDING' ${session.trustId ? `AND s."trustId" = '${session.trustId}'` : ''}`
         );
-        badges['Alumni Communication'] = resAlumni.rows[0]?.count || 0;
+        if (resAlumni.rows[0]?.count > 0) {
+          badges['Alumni Communication'] = resAlumni.rows[0].count;
+        }
       } catch (err) {
         console.error('Failed to get Alumni communication badge count:', err);
       }
 
+      // 4. Donations & Projects (Pending Inquiries)
       try {
-        // Count pending donation inquiries
         const resDonations = await pool.query(
           `SELECT COUNT(*)::int as count FROM "DonationInquiry" WHERE status = 'PENDING'`
         );
-        if (resDonations.rows[0]?.count) {
-          badges['Donations & Projects'] = resDonations.rows[0]?.count || 0;
+        if (resDonations.rows[0]?.count > 0) {
+          badges['Donations & Projects'] = resDonations.rows[0].count;
         }
       } catch (err) {
         // Table might not exist or empty
+      }
+
+      // 5. Needy Students Count
+      try {
+        const resNeedy = await pool.query(
+          `SELECT COUNT(*)::int as count FROM "Student" st
+           LEFT JOIN "School" s ON st."schoolId" = s.id
+           WHERE st."isNeedy" = true ${session.trustId ? `AND s."trustId" = '${session.trustId}'` : ''}`
+        );
+        if (resNeedy.rows[0]?.count > 0) {
+          badges['Students'] = resNeedy.rows[0].count;
+        }
+      } catch (err) {
+        // Ignore if column missing
       }
     } else if (session.role === 'SUB_ADMIN') {
       const schoolId = session.schoolId;
 
       if (schoolId) {
+        // 1. Alumni (Pending Verification Requests for this School)
         try {
           await ensureAlumniOnboardingTables();
-          // Count pending alumni verification requests for this school
           const resAlumni = await pool.query(
             `SELECT COUNT(*)::int as count FROM "AlumniRegistrationRequest"
              WHERE "schoolId" = $1 AND status = 'PENDING'`,
             [schoolId]
           );
-          badges['Alumni'] = resAlumni.rows[0]?.count || 0;
+          if (resAlumni.rows[0]?.count > 0) {
+            badges['Alumni'] = resAlumni.rows[0].count;
+          }
         } catch (err) {
           console.error('Failed to get subadmin Alumni badge count:', err);
         }
 
+        // 2. CSR Management (Pending CSR Inquiries for this School)
         try {
           await ensureCsrTables();
-          // Count pending CSR inquiries relevant to this school
           const resCsr = await pool.query(
             `SELECT COUNT(*)::int as count FROM "CsrInquiry"
              WHERE ("schoolId" = $1 OR "schoolId" IS NULL) AND status = 'PENDING'`,
             [schoolId]
           );
-          badges['CSR Management'] = resCsr.rows[0]?.count || 0;
+          if (resCsr.rows[0]?.count > 0) {
+            badges['CSR Management'] = resCsr.rows[0].count;
+          }
         } catch (err) {
           console.error('Failed to get subadmin CSR badge count:', err);
         }
 
+        // 3. Donations (Pending Inquiries for this School)
         try {
-          // Count pending donation inquiries for this school
           const resDonations = await pool.query(
             `SELECT COUNT(*)::int as count FROM "DonationInquiry"
              WHERE "schoolId" = $1 AND status = 'PENDING'`,
             [schoolId]
           );
-          badges['Donations'] = resDonations.rows[0]?.count || 0;
+          if (resDonations.rows[0]?.count > 0) {
+            badges['Donations'] = resDonations.rows[0].count;
+          }
         } catch (err) {
-          // Ignore if table missing
+          // Ignore
+        }
+
+        // 4. Students (Needy Students in this School)
+        try {
+          const resNeedy = await pool.query(
+            `SELECT COUNT(*)::int as count FROM "Student"
+             WHERE "schoolId" = $1 AND "isNeedy" = true`,
+            [schoolId]
+          );
+          if (resNeedy.rows[0]?.count > 0) {
+            badges['Students'] = resNeedy.rows[0].count;
+          }
+        } catch (err) {
+          // Ignore
         }
       }
     }
