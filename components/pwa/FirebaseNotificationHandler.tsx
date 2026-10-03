@@ -2,13 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { requestFcmToken, listenToForegroundNotifications } from '@/lib/firebaseClient';
-import { Bell, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Bell, X, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 export default function FirebaseNotificationHandler() {
   const [notification, setNotification] = useState<{
     title: string;
     body: string;
     icon?: string;
+    link?: string | null;
   } | null>(null);
 
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>('default');
@@ -31,31 +33,58 @@ export default function FirebaseNotificationHandler() {
         requestFcmToken().catch(() => {});
       }
 
-      // Listen for foreground push notifications
+      const showInAppToast = (title: string, body: string, icon?: string, link?: string | null) => {
+        setNotification({
+          title,
+          body,
+          icon: icon || '/my-gurukul.png',
+          link: link || null,
+        });
+
+        // Trigger native notification if allowed
+        if (Notification.permission === 'granted') {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((reg) => {
+              reg.showNotification(title, {
+                body,
+                icon: icon || '/my-gurukul.png',
+                badge: icon || '/my-gurukul.png',
+                data: { url: link || '/' },
+              });
+            }).catch(() => {});
+          }
+        }
+
+        // Auto-dismiss in-app toast after 7 seconds
+        setTimeout(() => setNotification(null), 7000);
+      };
+
+      // 1. Listen for In-App Toast events triggered by database sync
+      const handleAppToast = (e: any) => {
+        const item = e.detail;
+        if (!item) return;
+        const logo = item.schoolLogo || item.trustLogo || '/my-gurukul.png';
+        showInAppToast(item.title, item.message, logo, item.link);
+      };
+      window.addEventListener('app-notification-toast', handleAppToast);
+
+      // 2. Listen for FCM foreground push notifications
       listenToForegroundNotifications((payload) => {
         try {
           const title = payload.notification?.title || payload.data?.title || 'EduTrust Alert';
-          const body = payload.notification?.body || payload.data?.body || 'You have a new notification.';
+          const body = payload.notification?.body || payload.data?.body || 'You have received a new update.';
           const icon = payload.notification?.icon || payload.data?.icon || '/my-gurukul.png';
+          const link = payload.data?.link || payload.data?.url || null;
 
-          // 1. Set In-App Toast state
-          setNotification({ title, body, icon });
-
-          // Auto-dismiss after 6 seconds
-          setTimeout(() => setNotification(null), 6000);
-
-          // 2. Also trigger native browser notification if allowed (guarded for mobile browsers)
-          if (Notification.permission === 'granted') {
-            try {
-              new Notification(title, { body, icon });
-            } catch {
-              // Mobile browsers require ServiceWorkerRegistration.showNotification; ignored in foreground
-            }
-          }
+          showInAppToast(title, body, icon, link);
         } catch (innerErr) {
           console.error('Foreground notification parse error:', innerErr);
         }
       }).catch(() => {});
+
+      return () => {
+        window.removeEventListener('app-notification-toast', handleAppToast);
+      };
     } catch (err) {
       console.warn('Push notification initialization skipped:', err);
       setPermissionState('unsupported');
@@ -65,7 +94,7 @@ export default function FirebaseNotificationHandler() {
   const handleEnableNotifications = async () => {
     setLoading(true);
     try {
-      const token = await requestFcmToken();
+      await requestFcmToken();
       if (typeof window !== 'undefined' && 'Notification' in window) {
         setPermissionState(Notification.permission);
       }
@@ -78,17 +107,28 @@ export default function FirebaseNotificationHandler() {
     <>
       {/* 1. Foreground In-App Toast Banner */}
       {notification && (
-        <div className="fixed top-5 right-5 z-[9999] max-w-sm w-full bg-slate-900/95 text-white backdrop-blur-xl p-4 rounded-2xl border border-slate-700/80 shadow-2xl animate-in slide-in-from-top-5 duration-300 flex items-start space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
+        <div className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] sm:w-full bg-slate-900/95 text-white backdrop-blur-xl p-4 rounded-2xl border border-slate-700/80 shadow-2xl shadow-slate-950/40 animate-in slide-in-from-top-5 duration-300 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30 mt-0.5">
             <Bell size={20} className="animate-bounce" />
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-bold text-white tracking-tight truncate">{notification.title}</h4>
             <p className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-2 mt-0.5">{notification.body}</p>
+            {notification.link && (
+              <a
+                href={notification.link}
+                onClick={() => setNotification(null)}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 mt-2 transition-colors cursor-pointer"
+              >
+                <span>View Details</span>
+                <ExternalLink size={11} />
+              </a>
+            )}
           </div>
           <button
             onClick={() => setNotification(null)}
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close alert"
           >
             <X size={14} />
           </button>

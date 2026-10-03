@@ -43,6 +43,9 @@ export default function NotificationBell({ role, variant = 'default' }: Notifica
   const [pushPermission, setPushPermission] = useState<string>('default');
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const isFirstLoadRef = useRef(true);
+  const knownNotificationIdsRef = useRef<Set<string>>(new Set());
+
   const checkPushPermission = () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setPushPermission(Notification.permission);
@@ -59,7 +62,21 @@ export default function NotificationBell({ role, variant = 'default' }: Notifica
       const response = await fetch('/api/notifications', { cache: 'no-store' });
       if (!response.ok) return;
       const data = await response.json();
-      setNotifications(data.notifications || []);
+      const list: NotificationItem[] = data.notifications || [];
+      
+      // If new unread notifications arrive after initial load, pop up toast banner!
+      if (!isFirstLoadRef.current && typeof window !== 'undefined') {
+        const incomingUnread = list.filter(n => !n.isRead && !knownNotificationIdsRef.current.has(n.id));
+        if (incomingUnread.length > 0) {
+          incomingUnread.forEach(n => {
+            window.dispatchEvent(new CustomEvent('app-notification-toast', { detail: n }));
+          });
+        }
+      }
+
+      knownNotificationIdsRef.current = new Set(list.map(n => n.id));
+      isFirstLoadRef.current = false;
+      setNotifications(list);
       setUnreadCount(data.unreadCount || 0);
     } catch {}
   };
