@@ -438,7 +438,43 @@ export default function AlumniMemoriesHub() {
               >
                 {/* Media Section */}
                 <div>
-                  {images.length > 0 ? (
+                  {images.length === 2 ? (
+                    <div className="grid grid-cols-2 gap-1.5 h-48 sm:h-52 w-full rounded-xl sm:rounded-2xl overflow-hidden bg-slate-900/5 p-1 relative">
+                      {images.map((imgUrl, i) => (
+                        <div
+                          key={i}
+                          onClick={() => openLightbox(images, i, event.title)}
+                          className="relative h-full w-full rounded-lg overflow-hidden cursor-pointer group/img bg-slate-200"
+                        >
+                          <Image
+                            src={imgUrl}
+                            alt=""
+                            fill
+                            className="object-cover group-hover/img:scale-105 transition-transform duration-500"
+                            unoptimized
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center">
+                            <Maximize2 size={16} className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow-md" />
+                          </div>
+                          <div className="absolute bottom-1.5 right-1.5 bg-slate-900/80 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                            {i + 1} / 2
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Top Badges */}
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none">
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-white bg-slate-900/80 backdrop-blur-md px-2.5 py-0.5 rounded-full shadow-xs">
+                          {event.category || 'Campus Event'}
+                        </span>
+                        {event.eventYear && (
+                          <span className="text-[9.5px] font-bold text-blue-900 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-full shadow-xs">
+                            Year {event.eventYear}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : images.length > 0 ? (
                     <div className="relative h-48 sm:h-52 w-full overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100">
                       <Image
                         src={images[0]}
@@ -465,7 +501,7 @@ export default function AlumniMemoriesHub() {
                       {images.length > 1 && (
                         <button
                           onClick={() => openLightbox(images, 0, event.title)}
-                          className="absolute bottom-2.5 right-2.5 text-[10px] font-bold text-white bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm hover:bg-slate-900 transition-colors"
+                          className="absolute bottom-2.5 right-2.5 text-[10px] font-bold text-white bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm hover:bg-slate-900 transition-colors cursor-pointer"
                         >
                           <Camera size={11} />
                           <span>{images.length} Photos</span>
@@ -495,7 +531,7 @@ export default function AlumniMemoriesHub() {
                   )}
 
                   {/* Thumbnail Row if 3+ photos */}
-                  {images.length > 1 && (
+                  {images.length > 2 && (
                     <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100/60 rounded-xl mt-1.5">
                       {images.slice(0, 4).map((imgUrl, i) => (
                         <div
