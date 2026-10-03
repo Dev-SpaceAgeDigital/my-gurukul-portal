@@ -2,10 +2,10 @@ importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "AIzaSyCIqNwYeujJUL4StFfqxSvb_MeJcRYVXhY",
-  projectId: "madni-education-trust",
-  messagingSenderId: "372435663137",
-  appId: "1:372435663137:web:4cb37f8ad7c53d8470e660",
+  apiKey: "AIzaSyBlwhvIIZWyfO73AprEf7OLC_3Tbnqed9Y",
+  projectId: "my-gurukul-fc10f",
+  messagingSenderId: "31778808827",
+  appId: "1:31778808827:web:ff61bb1899185f82c1e15e",
 });
 
 const messaging = firebase.messaging();

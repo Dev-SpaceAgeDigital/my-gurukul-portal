@@ -2,12 +2,12 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCIqNwYeujJUL4StFfqxSvb_MeJcRYVXhY",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "madni-education-trust.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "madni-education-trust",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "madni-education-trust.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "372435663137",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:372435663137:web:4cb37f8ad7c53d8470e660",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBlwhvIIZWyfO73AprEf7OLC_3Tbnqed9Y",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "my-gurukul-fc10f.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "my-gurukul-fc10f",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "my-gurukul-fc10f.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "31778808827",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:31778808827:web:ff61bb1899185f82c1e15e",
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -37,7 +37,7 @@ export async function requestFcmToken(): Promise<string | null> {
     }
 
     // 3. Obtain FCM Device Token (VAPID key is required for web push subscriptions)
-    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BDC0lsUj1uAUMR2NOpRcBwHNHlC0iC33ktNesY5aYcQOGdorlDLlOY-GncAd9qGNdRLWLa1yqTLAeoeO1-BL_30";
+    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BKo7nfOVZgvCL4tuHTs_P8AoHXl9-xvZYXvZbzfSRR8kHaytl_n0A0prOECPahYuiBdz2NDBRDNg3QQ9V4OnLlk";
     if (!vapidKey) {
       console.error('[FCM] NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set. Cannot get FCM token.');
       return null;
