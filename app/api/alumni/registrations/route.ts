@@ -43,9 +43,9 @@ export async function GET(request: Request) {
       pool.query(
         `SELECT id, name, email, "phoneNo", "linkedInUrl", "createdAt"
          FROM "OpportunityRegistration"
-         WHERE "postType" = $1 AND "postId" = $2 AND "alumniId" = $3
+         WHERE "postType" = $1 AND "postId" = $2
          ORDER BY "createdAt" DESC`,
-        [postType, postId, alumniId]
+        [postType, postId]
       ),
       pool.query(
         `SELECT 
@@ -55,9 +55,9 @@ export async function GET(request: Request) {
            a.id as "alumniId",
            a.name,
            a.email,
-           a."phoneNo",
+           a.phone as "phoneNo",
            a."currentTitle",
-           a."currentCompany",
+           a.industry as "currentCompany",
            a."profilePic",
            a."linkedIn",
            a."batchYear"
