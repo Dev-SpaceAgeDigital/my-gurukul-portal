@@ -320,7 +320,7 @@ export default function AlumniLoginPage() {
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
-                      placeholder="alumni@madnieducation.com"
+                      placeholder="alumni@example.com"
                     />
                   ) : (
                     <div className="space-y-3">
@@ -435,7 +435,7 @@ export default function AlumniLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-100 focus:border-blue-500 rounded-xl outline-none transition-all duration-300 focus:ring-4 focus:ring-blue-500/5 text-slate-800 text-xs font-semibold placeholder:text-slate-300"
-                  placeholder="alumni@madnieducation.com"
+                  placeholder="alumni@example.com"
                 />
               </div>
             ) : (
